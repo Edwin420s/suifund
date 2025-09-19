@@ -6,15 +6,18 @@ const Button = ({
   variant = 'primary', 
   size = 'md', 
   disabled = false,
+  loading = false,
   className = '',
+  type = 'button',
   ...props 
 }) => {
-  const baseClasses = 'rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2'
+  const baseClasses = 'rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
   
   const variants = {
     primary: 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 text-white',
     secondary: 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500 text-white',
-    outline: 'border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:ring-primary-500'
+    outline: 'border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:ring-primary-500',
+    ghost: 'text-gray-300 hover:text-white hover:bg-slate-800 focus:ring-slate-500'
   }
   
   const sizes = {
@@ -23,18 +26,26 @@ const Button = ({
     lg: 'px-6 py-3 text-lg'
   }
 
-  const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`
+  const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`
 
   return (
     <motion.button
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
+      whileHover={disabled ? {} : { scale: 1.02 }}
+      whileTap={disabled ? {} : { scale: 0.98 }}
       className={classes}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
+      type={type}
       {...props}
     >
-      {children}
+      {loading ? (
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+          Loading...
+        </div>
+      ) : (
+        children
+      )}
     </motion.button>
   )
 }

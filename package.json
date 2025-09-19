@@ -1,0 +1,23 @@
+{
+  "name": "suifund",
+  "version": "1.0.0",
+  "description": "Decentralized crowdfunding platform on Sui blockchain",
+  "scripts": {
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm run build",
+    "preview": "cd web && npm run preview",
+    "deploy:contracts": "cd contracts && ./scripts/deploy-contracts.sh",
+    "test:contracts": "cd contracts && sui move test"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.0.1",
+    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react-hooks": "^4.3.0"
+  },
+  "workspaces": [
+    "web",
+    "backend"
+  ]
+}

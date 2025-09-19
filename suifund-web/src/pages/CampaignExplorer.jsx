@@ -5,12 +5,14 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { useAppStore } from '../stores/useAppStore'
 import { useReadOnChain } from '../hooks/useReadOnChain'
+import { useCampaigns } from '../hooks/useCampaigns'
 
 const CampaignExplorer = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
-  const { campaigns, setCampaigns, setCurrentCampaign } = useAppStore()
+  const { campaigns, setCampaigns, setCurrentCampaign, setCurrentView, isLoading } = useAppStore()
   const { getCampaigns } = useReadOnChain()
+  const { refreshCampaigns } = useCampaigns()
 
   useEffect(() => {
     loadCampaigns()
@@ -39,13 +41,13 @@ const CampaignExplorer = () => {
 
   const handleCampaignClick = (campaign) => {
     setCurrentCampaign(campaign)
-    useAppStore.getState().setCurrentView('campaign')
+    setCurrentView('campaign')
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold mb-4 md:mb-0">Explore Campaigns</h1>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <h1 className="text-3xl font-bold">Explore Campaigns</h1>
         
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <Input
@@ -65,6 +67,14 @@ const CampaignExplorer = () => {
             <option value="completed">Completed</option>
             <option value="failed">Failed</option>
           </select>
+
+          <Button 
+            onClick={refreshCampaigns}
+            loading={isLoading}
+            variant="outline"
+          >
+            Refresh
+          </Button>
         </div>
       </div>
 

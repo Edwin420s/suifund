@@ -58,6 +58,7 @@ const Dashboard = () => {
   }
 
   const displayedCampaigns = activeTab === 'created' ? userCampaigns : userContributions
+  const totalContributed = userContributions.reduce((total, contrib) => total + contrib.amount, 0)
 
   return (
     <div className="max-w-6xl mx-auto">

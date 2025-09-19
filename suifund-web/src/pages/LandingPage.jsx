@@ -7,6 +7,24 @@ const LandingPage = () => {
   const { setCurrentView } = useAppStore()
   const { connected } = useWalletClient()
 
+  const features = [
+    {
+      icon: '🚀',
+      title: 'Transparent Funding',
+      description: 'All campaigns and transactions are on-chain with automatic refunds if goals aren\'t met.'
+    },
+    {
+      icon: '📊',
+      title: 'Prediction Markets',
+      description: 'Bet on project outcomes and earn rewards based on accurate predictions.'
+    },
+    {
+      icon: '💎',
+      title: 'NFT Rewards',
+      description: 'Receive unique NFTs as proof of support and potential revenue sharing.'
+    }
+  ]
+
   return (
     <div className="min-h-[80vh] flex items-center">
       <div className="text-center max-w-4xl mx-auto">
@@ -49,22 +67,41 @@ const LandingPage = () => {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8"
         >
-          <div className="text-center p-6 bg-slate-800 rounded-xl">
-            <div className="text-3xl mb-4">🚀</div>
-            <h3 className="text-xl font-semibold mb-2">Transparent Funding</h3>
-            <p className="text-gray-400">All campaigns and transactions are on-chain with automatic refunds if goals aren't met.</p>
-          </div>
-          
-          <div className="text-center p-6 bg-slate-800 rounded-xl">
-            <div className="text-3xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold mb-2">Prediction Markets</h3>
-            <p className="text-gray-400">Bet on project outcomes and earn rewards based on accurate predictions.</p>
-          </div>
-          
-          <div className="text-center p-6 bg-slate-800 rounded-xl">
-            <div className="text-3xl mb-4">💎</div>
-            <h3 className="text-xl font-semibold mb-2">NFT Rewards</h3>
-            <p className="text-gray-400">Receive unique NFTs as proof of support and potential revenue sharing.</p>
+          {features.map((feature, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="text-center p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-primary-500 transition-colors"
+            >
+              <div className="text-3xl mb-4">{feature.icon}</div>
+              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+              <p className="text-gray-400">{feature.description}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mt-20 bg-slate-800 rounded-xl p-8 border border-slate-700"
+        >
+          <h2 className="text-2xl font-bold mb-4">How It Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            <div>
+              <h3 className="font-semibold mb-2 text-primary-400">1. Create or Explore</h3>
+              <p className="text-gray-400">Launch your project or discover innovative ideas from the community.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2 text-primary-400">2. Fund or Predict</h3>
+              <p className="text-gray-400">Support projects you believe in or predict their success in markets.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2 text-primary-400">3. Earn Rewards</h3>
+              <p className="text-gray-400">Get NFTs, share revenue, or win prediction market payouts.</p>
+            </div>
           </div>
         </motion.div>
       </div>

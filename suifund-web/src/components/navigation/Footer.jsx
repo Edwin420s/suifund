@@ -27,7 +27,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-gray-400">
-          <p>© 2025 SuiFund. All rights reserved.</p>
+          <p>© 2024 SuiFund. All rights reserved.</p>
         </div>
       </div>
     </footer>

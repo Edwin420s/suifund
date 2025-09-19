@@ -17,9 +17,9 @@ function App() {
       case 'explorer':
         return <CampaignExplorer />
       case 'create':
-        return <CreateCampaign />
+        return connected ? <CreateCampaign /> : <LandingPage />
       case 'dashboard':
-        return <Dashboard />
+        return connected ? <Dashboard /> : <LandingPage />
       case 'campaign':
         return <CampaignDetails />
       default:

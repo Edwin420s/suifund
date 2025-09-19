@@ -8,12 +8,12 @@ const Navbar = () => {
   const { setCurrentView } = useAppStore()
 
   return (
-    <nav className="bg-slate-900 border-b border-slate-700">
+    <nav className="bg-slate-900 border-b border-slate-700 sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
             <div 
-              className="text-xl font-bold text-primary-500 cursor-pointer"
+              className="text-xl font-bold text-primary-500 cursor-pointer hover:text-primary-400 transition-colors"
               onClick={() => setCurrentView('home')}
             >
               SuiFund
@@ -21,26 +21,28 @@ const Navbar = () => {
             
             <div className="hidden md:flex space-x-4">
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
                 onClick={() => setCurrentView('explorer')}
               >
                 Explore
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setCurrentView('create')}
-              >
-                Create
-              </Button>
+              {connected && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setCurrentView('create')}
+                >
+                  Create
+                </Button>
+              )}
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             {connected && (
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
                 onClick={() => setCurrentView('dashboard')}
               >

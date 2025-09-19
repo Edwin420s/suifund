@@ -7,11 +7,26 @@ const BettingWidget = ({ campaign }) => {
   const { connected } = useWalletClient()
   const [betAmount, setBetAmount] = useState('')
   const [selectedOutcome, setSelectedOutcome] = useState('yes')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handlePlaceBet = async () => {
     if (!connected || !betAmount) return
-    // Here you would implement the contract interaction
-    console.log('Placing bet:', { amount: betAmount, outcome: selectedOutcome })
+    
+    setIsLoading(true)
+    try {
+      // Here you would implement the contract interaction
+      console.log('Placing bet:', { amount: betAmount, outcome: selectedOutcome })
+      
+      // Simulate transaction
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Reset form
+      setBetAmount('')
+    } catch (error) {
+      console.error('Failed to place bet:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!campaign.predictionMarket) {
@@ -56,12 +71,15 @@ const BettingWidget = ({ campaign }) => {
             value={betAmount}
             onChange={(e) => setBetAmount(e.target.value)}
             className="mb-4"
+            min="0.1"
+            step="0.1"
           />
           
           <Button 
             className="w-full" 
             onClick={handlePlaceBet}
             disabled={!betAmount}
+            loading={isLoading}
           >
             Place Bet
           </Button>

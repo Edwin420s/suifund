@@ -12,6 +12,7 @@ export const useWalletClient = () => {
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error)
+      throw error
     }
   }
 
@@ -21,12 +22,43 @@ export const useWalletClient = () => {
       setCurrentView('home')
     } catch (error) {
       console.error('Failed to disconnect wallet:', error)
+      throw error
+    }
+  }
+
+  const signTransaction = async (transactionBlock) => {
+    try {
+      return await wallet.signTransactionBlock({
+        transactionBlock,
+        chain: 'sui:testnet'
+      })
+    } catch (error) {
+      console.error('Failed to sign transaction:', error)
+      throw error
+    }
+  }
+
+  const executeTransaction = async (transactionBlock) => {
+    try {
+      return await wallet.signAndExecuteTransactionBlock({
+        transactionBlock,
+        chain: 'sui:testnet',
+        options: {
+          showEffects: true,
+          showEvents: true
+        }
+      })
+    } catch (error) {
+      console.error('Failed to execute transaction:', error)
+      throw error
     }
   }
 
   return {
     connect,
     disconnect,
+    signTransaction,
+    executeTransaction,
     address: wallet.account?.address,
     connected: wallet.connected,
     wallet

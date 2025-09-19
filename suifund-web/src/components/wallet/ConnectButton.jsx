@@ -10,7 +10,7 @@ const ConnectButton = () => {
   if (connected) {
     return (
       <div className="flex items-center space-x-2">
-        <span className="text-sm text-gray-300">
+        <span className="text-sm text-gray-300 hidden md:block">
           {formatAddress(address)}
         </span>
         <Button 

@@ -8,7 +8,7 @@ SuiFund is a decentralized crowdfunding platform built on the Sui blockchain tha
 - **Blockchain**: Sui Move smart contracts
 - **Wallet Integration**: Sui Wallet Kit
 - **Storage**: IPFS for media files
-- **Indexing**: Custom indexer (optional)
+- **Indexing**: Custom Node.js service with MongoDB (optional)
 
 ## Smart Contract Architecture
 
@@ -38,3 +38,10 @@ SuiFund is a decentralized crowdfunding platform built on the Sui blockchain tha
 - Real-time contribution tracking
 - Prediction market interaction
 - NFT gallery and management
+
+## Deployment Architecture
+- Frontend: Vercel/Netlify
+- Smart Contracts: Sui Blockchain
+- Indexing Service: Railway/Render (optional)
+- Database: MongoDB Atlas (optional)
+- File Storage: IPFS via Pinata/web3.storage
