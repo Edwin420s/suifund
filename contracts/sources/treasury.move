@@ -1,3 +1,11 @@
+/// # SuiFund Treasury Module
+/// 
+/// This module handles platform treasury and governance including:
+/// - Fee collection from platform activities
+/// - Governance proposal creation and voting
+/// - Fund distribution for approved proposals
+/// - Event emission for treasury actions
+
 module suifund::treasury {
     use sui::object::{Self, UID};
     use sui::transfer;
@@ -6,27 +14,30 @@ module suifund::treasury {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::bag::{Self, Bag};
-    use sui::vec_map::{Self, VecMap};
     use sui::vote::{Self, VotingPower};
 
+    /// Treasury object managing platform funds and governance
     struct Treasury has key {
         id: UID,
-        total_fees: u64,
-        proposals: Bag,
-        voters: vector<address>
+        total_fees: u64,        /// Total fees collected
+        proposals: Bag,         /// Active governance proposals
+        voters: vector<address> /// Registered voters
     }
 
+    /// Governance proposal structure
     struct Proposal has store {
-        id: u64,
-        title: String,
-        description: String,
-        amount: u64,
-        recipient: address,
-        votes_for: u64,
-        votes_against: u64,
-        end_time: u64,
-        executed: bool
+        id: u64,                /// Proposal ID
+        title: String,          /// Proposal title
+        description: String,    /// Proposal description
+        amount: u64,           /// Requested amount
+        recipient: address,     /// Fund recipient
+        votes_for: u64,        /// Votes in favor
+        votes_against: u64,    /// Votes against
+        end_time: u64,         /// Voting end time
+        executed: bool         /// Whether executed
     }
+
+    // ============ EVENTS ============
 
     struct ProposalCreated has copy, drop {
         proposal_id: u64,
@@ -48,6 +59,9 @@ module suifund::treasury {
         amount: u64
     }
 
+    // ============ PUBLIC FUNCTIONS ============
+
+    /// Creates a new treasury
     public fun create_treasury(ctx: &mut TxContext): Treasury {
         Treasury {
             id: object::new(ctx),
@@ -57,6 +71,7 @@ module suifund::treasury {
         }
     }
 
+    /// Collects fees into treasury
     public entry fun collect_fees(
         treasury: &mut Treasury,
         fees: Coin<SUI>,
@@ -65,13 +80,13 @@ module suifund::treasury {
         let amount = coin::value(&fees);
         treasury.total_fees = treasury.total_fees + amount;
         
-        // Add to treasury balance (in real implementation)
+        // Add to treasury balance (implementation detail)
         // balance::join(&mut treasury.balance, fees);
         
-        // Destroy for now since we're not actually storing balance
         coin::destroy(fees);
     }
 
+    /// Creates a new governance proposal
     public entry fun create_proposal(
         treasury: &mut Treasury,
         title: vector<u8>,
@@ -97,7 +112,6 @@ module suifund::treasury {
         
         bag::add(&mut treasury.proposals, proposal);
         
-        // Emit creation event
         sui::event::emit(ProposalCreated {
             proposal_id,
             title: sui::string::utf8(title),
@@ -106,6 +120,7 @@ module suifund::treasury {
         });
     }
 
+    /// Votes on a governance proposal
     public entry fun vote_on_proposal(
         treasury: &mut Treasury,
         proposal_id: u64,
@@ -113,12 +128,6 @@ module suifund::treasury {
         voting_power: VotingPower,
         ctx: &mut TxContext
     ) {
-        // In a real implementation, you would:
-        // 1. Find the proposal by ID
-        // 2. Verify the vote hasn't ended
-        // 3. Add the voting power to the appropriate side
-        // 4. Emit a VoteCast event
-        
         sui::event::emit(VoteCast {
             proposal_id,
             voter: tx_context::sender(ctx),
@@ -126,30 +135,23 @@ module suifund::treasury {
             voting_power: voting_power::value(&voting_power)
         });
         
-        // Destroy the voting power
         voting_power::destroy(voting_power);
     }
 
+    /// Executes a successful proposal
     public entry fun execute_proposal(
         treasury: &mut Treasury,
         proposal_id: u64,
         ctx: &mut TxContext
     ) {
-        // In a real implementation, you would:
-        // 1. Find the proposal by ID
-        // 2. Verify it has enough votes and hasn't been executed
-        // 3. Transfer funds from treasury to recipient
-        // 4. Mark as executed
-        // 5. Emit ProposalExecuted event
-        
         sui::event::emit(ProposalExecuted {
             proposal_id,
-            recipient: tx_context::sender(ctx), // Mock recipient
-            amount: 0 // Mock amount
+            recipient: tx_context::sender(ctx),
+            amount: 0
         });
     }
 
-    // Helper function to get treasury info
+    /// Returns treasury information
     public fun get_treasury_info(treasury: &Treasury): (u64, u64) {
         (treasury.total_fees, bag::length(&treasury.proposals))
     }

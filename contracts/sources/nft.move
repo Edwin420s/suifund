@@ -1,23 +1,31 @@
+/// # SuiFund NFT Module
+/// 
+/// This module handles Supporter NFT functionality including:
+/// - NFT minting for campaign contributors
+/// - NFT metadata and benefit tracking
+/// - NFT transfer functionality
+/// - Event emission for NFT actions
+
 module suifund::nft {
     use std::string::{String, utf8};
     use sui::object::{Self, UID, ID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::url::{Self, Url};
-    use sui::dynamic_field::{Self, DynamicField};
-    use sui::vec_map::{Self, VecMap};
 
+    /// Supporter NFT representing campaign contribution
     struct SupporterNFT has key, store {
         id: UID,
-        campaign_id: ID,
-        contributor: address,
-        amount: u64,
-        timestamp: u64,
-        image_url: Url,
-        tier: String,
-        benefits: vector<String>
+        campaign_id: ID,          /// Associated campaign ID
+        contributor: address,     /// Contributor's address
+        amount: u64,             /// Contribution amount in MIST
+        timestamp: u64,          /// Contribution timestamp
+        image_url: Url,          /// NFT image URL
+        tier: String,            /// Contributor tier (Bronze, Silver, Gold)
+        benefits: vector<String> /// NFT benefits and perks
     }
 
+    /// Event emitted when NFT is minted
     struct NFTMinted has copy, drop {
         nft_id: ID,
         campaign_id: ID,
@@ -26,6 +34,7 @@ module suifund::nft {
         tier: String
     }
 
+    /// Mints a new Supporter NFT for a campaign contributor
     public fun mint_supporter_nft(
         campaign_id: ID,
         contributor: address,
@@ -39,6 +48,8 @@ module suifund::nft {
         let benefits_vec = vector::empty();
         let i = 0;
         let len = vector::length(&benefits);
+        
+        // Convert benefits to String vector
         while (i < len) {
             vector::push_back(&mut benefits_vec, utf8(vector::borrow(&benefits, i)));
             i = i + 1;
@@ -67,6 +78,7 @@ module suifund::nft {
         nft
     }
 
+    /// Transfers NFT to another address
     public entry fun transfer_nft(
         nft: SupporterNFT,
         recipient: address,
@@ -75,7 +87,7 @@ module suifund::nft {
         transfer::transfer(nft, recipient);
     }
 
-    // Helper function to get NFT info
+    /// Returns NFT information for external queries
     public fun get_nft_info(nft: &SupporterNFT): (ID, address, u64, u64, String, vector<String>) {
         (
             nft.campaign_id,

@@ -1,3 +1,16 @@
+/// # SuiFund Prediction Market Module
+/// 
+/// This module handles prediction markets for campaign outcomes including:
+/// - Market creation for campaign events
+/// - Bet placement with real SUI transfers
+/// - Market resolution and outcome setting
+/// - Automatic winnings calculation and distribution
+/// - Event emission for all market actions
+/// 
+/// ## Mathematical Model:
+/// - Winnings = (bet_amount / winning_pool) * losing_pool + bet_amount
+/// - Ensures fair distribution based on market dynamics
+
 module suifund::prediction_market {
     use std::string::{String, utf8};
     use sui::object::{Self, UID, ID};
@@ -8,46 +21,51 @@ module suifund::prediction_market {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::bag::{Self, Bag};
-    use sui::vec_map::{Self, VecMap};
     use suifund::utils;
 
-    // Error codes
-    const EMarketClosed: u64 = 0;
-    const EInvalidAmount: u64 = 1;
-    const EOutcomeAlreadySet: u64 = 2;
-    const ENotCreator: u64 = 3;
-    const EInvalidOutcome: u64 = 4;
-    const EAlreadyClaimed: u64 = 5;
-    const ENotBetter: u64 = 6;
-    const ENoWinnings: u64 = 7;
+    // ============ ERROR CODES ============
+    const EMarketClosed: u64 = 0;        /// Market is closed for betting
+    const EInvalidAmount: u64 = 1;       /// Invalid bet amount
+    const EOutcomeAlreadySet: u64 = 2;   /// Market outcome already resolved
+    const ENotCreator: u64 = 3;          /// Caller is not market creator
+    const EInvalidOutcome: u64 = 4;      /// Invalid outcome value
+    const EAlreadyClaimed: u64 = 5;      /// Winnings already claimed
+    const ENotBetter: u64 = 6;           /// Caller is not a better
+    const ENoWinnings: u64 = 7;          /// No winnings to claim
 
-    // Outcomes
-    const OUTCOME_UNRESOLVED: u8 = 0;
-    const OUTCOME_YES: u8 = 1;
-    const OUTCOME_NO: u8 = 2;
+    // ============ OUTCOME CODES ============
+    const OUTCOME_UNRESOLVED: u8 = 0;    /// Market outcome not yet determined
+    const OUTCOME_YES: u8 = 1;           /// Yes/Positive outcome
+    const OUTCOME_NO: u8 = 2;            /// No/Negative outcome
 
+    // ============ DATA STRUCTURES ============
+
+    /// Prediction Market object storing market state and bets
     struct PredictionMarket has key {
         id: UID,
-        campaign_id: ID,
-        question: String,
-        creator: address,
-        total_bets: u64,
-        yes_bets: u64,
-        no_bets: u64,
-        resolution_time: u64,
-        outcome: u8,
-        bets: Bag,
-        resolved: bool,
-        balance: Balance<SUI>
+        campaign_id: ID,          /// Associated campaign ID
+        question: String,         /// Market question
+        creator: address,         /// Market creator address
+        total_bets: u64,          /// Total bets in MIST
+        yes_bets: u64,           /// Total bets on YES outcome
+        no_bets: u64,            /// Total bets on NO outcome
+        resolution_time: u64,    /// Market resolution timestamp
+        outcome: u8,             /// Resolved outcome
+        bets: Bag,               /// Individual bet records
+        resolved: bool,          /// Whether market is resolved
+        balance: Balance<SUI>    /// Market balance holding all bets
     }
 
+    /// Individual bet record
     struct Bet has store {
-        better: address,
-        amount: u64,
-        outcome: u8,
-        timestamp: u64,
-        winnings_claimed: bool
+        better: address,         /// Better's address
+        amount: u64,            /// Bet amount in MIST
+        outcome: u8,            /// Chosen outcome
+        timestamp: u64,         /// Bet timestamp
+        winnings_claimed: bool  /// Whether winnings claimed
     }
+
+    // ============ EVENTS ============
 
     struct MarketCreated has copy, drop {
         market_id: ID,
@@ -74,6 +92,9 @@ module suifund::prediction_market {
         amount: u64
     }
 
+    // ============ PUBLIC FUNCTIONS ============
+
+    /// Creates a new prediction market for a campaign
     public fun create_market(
         campaign_id: ID,
         question: vector<u8>,
@@ -107,6 +128,7 @@ module suifund::prediction_market {
         market
     }
 
+    /// Places a bet on a market outcome
     public entry fun place_bet(
         market: &mut PredictionMarket,
         outcome: u8,
@@ -151,6 +173,7 @@ module suifund::prediction_market {
         });
     }
 
+    /// Resolves market with final outcome
     public entry fun resolve_market(
         market: &mut PredictionMarket,
         outcome: u8,
@@ -171,6 +194,7 @@ module suifund::prediction_market {
         });
     }
 
+    /// Claims winnings for winning bets
     public entry fun claim_winnings(
         market: &mut PredictionMarket,
         better: address,
@@ -188,6 +212,7 @@ module suifund::prediction_market {
         let winning_pool = if (market.outcome == OUTCOME_YES) market.yes_bets else market.no_bets;
         let losing_pool = if (market.outcome == OUTCOME_YES) market.no_bets else market.yes_bets;
 
+        // Find all winning bets for this better
         while (i < size) {
             let bet = bag::borrow_mut(bets, i);
             if (bet.better == better && bet.outcome == market.outcome && !bet.winnings_claimed) {
@@ -220,7 +245,7 @@ module suifund::prediction_market {
         });
     }
 
-    // Helper function to get market info
+    /// Returns market information for external queries
     public fun get_market_info(market: &PredictionMarket): (ID, String, address, u64, u64, u64, u64, u8, bool) {
         (
             market.campaign_id,
