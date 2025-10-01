@@ -1,64 +1,65 @@
+import { motion } from 'framer-motion'
 import { useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 
 const Toast = ({ message, type = 'info', onClose, duration = 5000 }) => {
   useEffect(() => {
-    if (duration) {
-      const timer = setTimeout(onClose, duration)
+    if (duration > 0) {
+      const timer = setTimeout(() => {
+        onClose && onClose()
+      }, duration)
+
       return () => clearTimeout(timer)
     }
   }, [duration, onClose])
 
-  const getBgColor = () => {
+  const getToastStyles = () => {
     switch (type) {
-      case 'success': return 'bg-green-500/20 border-green-500'
-      case 'error': return 'bg-red-500/20 border-red-500'
-      case 'warning': return 'bg-yellow-500/20 border-yellow-500'
-      default: return 'bg-blue-500/20 border-blue-500'
-    }
-  }
-
-  const getTextColor = () => {
-    switch (type) {
-      case 'success': return 'text-green-400'
-      case 'error': return 'text-red-400'
-      case 'warning': return 'text-yellow-400'
-      default: return 'text-blue-400'
+      case 'success':
+        return 'bg-green-500/20 border-green-500 text-green-400'
+      case 'error':
+        return 'bg-red-500/20 border-red-500 text-red-400'
+      case 'warning':
+        return 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+      default:
+        return 'bg-blue-500/20 border-blue-500 text-blue-400'
     }
   }
 
   const getIcon = () => {
     switch (type) {
-      case 'success': return '✅'
-      case 'error': return '❌'
-      case 'warning': return '⚠️'
-      default: return 'ℹ️'
+      case 'success':
+        return '✅'
+      case 'error':
+        return '❌'
+      case 'warning':
+        return '⚠️'
+      default:
+        return 'ℹ️'
     }
   }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -50 }}
-        transition={{ duration: 0.3 }}
-        className={`fixed top-4 right-4 z-50 p-4 rounded-lg border ${getBgColor()} ${getTextColor()} backdrop-blur-sm min-w-80 max-w-md`}
-      >
-        <div className="flex items-start space-x-3">
-          <span className="text-lg">{getIcon()}</span>
-          <div className="flex-1">
-            <p className="text-sm font-medium">{message}</p>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, x: 300 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 300 }}
+      className={`p-4 rounded-lg border ${getToastStyles()} shadow-lg max-w-sm`}
+    >
+      <div className="flex items-start space-x-3">
+        <span className="text-lg flex-shrink-0">{getIcon()}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium break-words">{message}</p>
+        </div>
+        {onClose && (
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
           >
             ×
           </button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+        )}
+      </div>
+    </motion.div>
   )
 }
 

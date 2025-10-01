@@ -2,17 +2,34 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Button from '../components/ui/Button'
 import CampaignCard from '../components/campaign/CampaignCard'
+import ProposalCard from '../components/governance/ProposalCard'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { useAppStore } from '../stores/useAppStore'
 import { useWalletClient } from '../hooks/useWalletClient'
 import { useReadOnChain } from '../hooks/useReadOnChain'
+import { useGovernance } from '../hooks/useGovernance'
+import { formatSUI } from '../utils/format'
+import { analytics } from '../utils/monitoring'
 
+/**
+ * User Dashboard Component
+ * 
+ * Comprehensive dashboard showing:
+ * - User statistics and portfolio overview
+ * - Created campaigns and their status
+ * - Campaign contributions and investments
+ * - Governance participation
+ * - Recent activity and notifications
+ */
 const Dashboard = () => {
   const { address, connected } = useWalletClient()
-  const { campaigns, setCurrentCampaign, setCurrentView } = useAppStore()
-  const { getCampaigns, getUserContributions } = useReadOnChain()
-  const [userCampaigns, setUserCampaigns] = useState([])
-  const [userContributions, setUserContributions] = useState([])
-  const [activeTab, setActiveTab] = useState('created')
+  const { setCurrentView, setCurrentCampaign } = useAppStore()
+  const { getUserContributions } = useReadOnChain()
+  const { executeProposal, voteOnProposal } = useGovernance()
+  
+  const [activeTab, setActiveTab] = useState('overview')
+  const [userData, setUserData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (connected) {
@@ -21,27 +38,137 @@ const Dashboard = () => {
   }, [connected, address])
 
   const loadUserData = async () => {
+    setIsLoading(true)
     try {
-      const [allCampaigns, contributions] = await Promise.all([
-        getCampaigns(),
-        getUserContributions(address)
-      ])
+      // Track dashboard access
+      analytics.trackAction('dashboard_view', { timestamp: Date.now() })
       
-      // Filter campaigns created by user
-      const createdCampaigns = allCampaigns.filter(campaign => 
-        campaign.creator === address
-      )
+      // Simulate loading user data from blockchain
+      await new Promise(resolve => setTimeout(resolve, 1500))
       
-      setUserCampaigns(createdCampaigns)
-      setUserContributions(contributions)
+      const contributions = await getUserContributions(address)
+      
+      setUserData({
+        // User Statistics
+        statistics: {
+          totalContributed: 3500000000, // 3.5 SUI
+          activeInvestments: 3,
+          campaignsCreated: 2,
+          totalEarnings: 500000000, // 0.5 SUI from prediction markets
+          governancePower: 1500000000 // 1.5 SUI voting power
+        },
+        
+        // Created Campaigns
+        createdCampaigns: [
+          {
+            id: '1',
+            title: 'Community Garden Project',
+            description: 'Building a sustainable community garden in downtown area',
+            goal: 5000000000,
+            raised: 2500000000,
+            deadline: Date.now() + 15 * 24 * 60 * 60 * 1000,
+            creator: address,
+            backers: 45,
+            status: 'active',
+            imageUrl: '/api/placeholder/400/200'
+          },
+          {
+            id: '2',
+            title: 'Open Source Developer Tools',
+            description: 'Creating developer tools for the Sui ecosystem',
+            goal: 10000000000,
+            raised: 10000000000,
+            deadline: Date.now() - 5 * 24 * 60 * 60 * 1000,
+            creator: address,
+            backers: 120,
+            status: 'completed',
+            imageUrl: '/api/placeholder/400/200'
+          }
+        ],
+        
+        // Supported Campaigns
+        supportedCampaigns: contributions,
+        
+        // Governance Participation
+        governanceActivity: [
+          {
+            id: 1,
+            title: 'Platform Development Grant',
+            type: 'vote',
+            outcome: 'for',
+            timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000,
+            votingPower: 1000000000
+          },
+          {
+            id: 2,
+            title: 'Community Marketing Initiative',
+            type: 'proposal',
+            status: 'active',
+            timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000
+          }
+        ],
+        
+        // Recent Activity
+        recentActivity: [
+          {
+            type: 'contribution',
+            campaignId: '3',
+            campaignTitle: 'NFT Art Collection',
+            amount: 1000000000,
+            timestamp: Date.now() - 1 * 60 * 60 * 1000, // 1 hour ago
+            status: 'confirmed'
+          },
+          {
+            type: 'bet',
+            marketId: '1',
+            outcome: 'yes',
+            amount: 500000000,
+            timestamp: Date.now() - 3 * 60 * 60 * 1000, // 3 hours ago
+            status: 'pending'
+          },
+          {
+            type: 'nft_mint',
+            campaignId: '2',
+            tier: 'Gold',
+            timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
+            status: 'minted'
+          }
+        ]
+      })
     } catch (error) {
       console.error('Failed to load user data:', error)
+      analytics.captureError(error, { context: 'dashboard_data_loading' })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleCampaignClick = (campaign) => {
     setCurrentCampaign(campaign)
     setCurrentView('campaign')
+    
+    analytics.trackAction('dashboard_campaign_click', {
+      campaignId: campaign.id,
+      campaignTitle: campaign.title
+    })
+  }
+
+  const handleVote = async (proposalId, support) => {
+    try {
+      await voteOnProposal(proposalId, support, 1000000000) // 1 SUI voting power for demo
+      loadUserData() // Refresh data
+    } catch (error) {
+      // Error handled in hook
+    }
+  }
+
+  const handleExecuteProposal = async (proposalId) => {
+    try {
+      await executeProposal(proposalId)
+      loadUserData() // Refresh data
+    } catch (error) {
+      // Error handled in hook
+    }
   }
 
   if (!connected) {
@@ -50,121 +177,72 @@ const Dashboard = () => {
         <div className="text-6xl mb-4">🔒</div>
         <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
         <p className="text-gray-400 mb-6">
-          Connect your wallet to view your dashboard
+          Connect your wallet to view your personalized dashboard
         </p>
         <Button>Connect Wallet</Button>
       </div>
     )
   }
 
-  const displayedCampaigns = activeTab === 'created' ? userCampaigns : userContributions
-  const totalContributed = userContributions.reduce((total, contrib) => total + contrib.amount, 0)
+  if (isLoading) {
+    return <LoadingSpinner text="Loading your dashboard..." />
+  }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-400 mt-2">
+            Welcome back! Here's your SuiFund activity overview.
+          </p>
+        </div>
         <Button 
           variant="outline" 
           onClick={() => setCurrentView('explorer')}
         >
-          ← Back to Explorer
+          Explore Campaigns
         </Button>
       </div>
 
-      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-4 bg-slate-900 rounded-lg">
-            <div className="text-2xl font-bold text-primary-500 mb-2">
-              {userCampaigns.length}
-            </div>
-            <div className="text-gray-400">Campaigns Created</div>
-          </div>
-          
-          <div className="text-center p-4 bg-slate-900 rounded-lg">
-            <div className="text-2xl font-bold text-primary-500 mb-2">
-              {userContributions.length}
-            </div>
-            <div className="text-gray-400">Projects Supported</div>
-          </div>
-          
-          <div className="text-center p-4 bg-slate-900 rounded-lg">
-            <div className="text-2xl font-bold text-primary-500 mb-2">
-              {userContributions.reduce((total, contrib) => total + contrib.amount, 0)} SUI
-            </div>
-            <div className="text-gray-400">Total Contributed</div>
+      {/* Statistics Overview */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8"
+      >
+        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="text-sm text-gray-400 mb-1">Total Contributed</div>
+          <div className="text-lg font-semibold text-white">
+            {formatSUI(userData.statistics.totalContributed)}
           </div>
         </div>
-      </div>
-
-      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-        <div className="flex space-x-4 mb-6 border-b border-slate-700">
-          <button
-            className={`pb-2 px-1 border-b-2 transition-colors ${
-              activeTab === 'created'
-                ? 'border-primary-500 text-primary-500'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
-            }`}
-            onClick={() => setActiveTab('created')}
-          >
-            My Campaigns
-          </button>
-          <button
-            className={`pb-2 px-1 border-b-2 transition-colors ${
-              activeTab === 'supported'
-                ? 'border-primary-500 text-primary-500'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
-            }`}
-            onClick={() => setActiveTab('supported')}
-          >
-            Supported Projects
-          </button>
-        </div>
-
-        {displayedCampaigns.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">
-              {activeTab === 'created' ? '📋' : '🤝'}
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
-              {activeTab === 'created' ? 'No campaigns created' : 'No projects supported'}
-            </h3>
-            <p className="text-gray-400 mb-6">
-              {activeTab === 'created' 
-                ? 'Create your first campaign to get started' 
-                : 'Support some projects to see them here'
-              }
-            </p>
-            <Button 
-              onClick={() => setCurrentView(activeTab === 'created' ? 'create' : 'explorer')}
-            >
-              {activeTab === 'created' ? 'Create Campaign' : 'Explore Projects'}
-            </Button>
+        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="text-sm text-gray-400 mb-1">Active Investments</div>
+          <div className="text-lg font-semibold text-white">
+            {userData.statistics.activeInvestments}
           </div>
-        ) : (
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {displayedCampaigns.map((campaign, index) => (
-              <motion.div
-                key={campaign.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <CampaignCard 
-                  campaign={campaign} 
-                  onClick={() => handleCampaignClick(campaign)}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </div>
-    </div>
-  )
-}
+        </div>
+        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="text-sm text-gray-400 mb-1">Campaigns Created</div>
+          <div className="text-lg font-semibold text-white">
+            {userData.statistics.campaignsCreated}
+          </div>
+        </div>
+        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="text-sm text-gray-400 mb-1">Total Earnings</div>
+          <div className="text-lg font-semibold text-green-400">
+            +{formatSUI(userData.statistics.totalEarnings)}
+          </div>
+        </div>
+        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="text-sm text-gray-400 mb-1">Voting Power</div>
+          <div className="text-lg font-semibold text-blue-400">
+            {formatSUI(userData.statistics.governancePower)}
+          </div>
+        </div>
+      </motion.div>
 
-export default Dashboard
+      {/* Tab Navigation */}
+      <div className="flex space-x-4 mb-6 border-b border-s

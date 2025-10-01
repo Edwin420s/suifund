@@ -1,267 +1,298 @@
-import { TransactionBlock } from '@mysten/sui.js'
-import { PACKAGE_ID } from './constants'
+import { getFullnodeUrl, SuiClient } from '@mysten/sui.js/client'
 
 /**
- * Blockchain Utility Functions
- * 
- * Provides helper functions for blockchain interactions including:
- * - Transaction building and validation
- * - Object querying and parsing
- * - Event processing and filtering
- * - Error handling and retry logic
+ * Blockchain utilities for SuiFund
  */
+
+// Network configuration
+export const NETWORKS = {
+  mainnet: {
+    name: 'Mainnet',
+    url: getFullnodeUrl('mainnet'),
+    faucetUrl: null
+  },
+  testnet: {
+    name: 'Testnet',
+    url: getFullnodeUrl('testnet'),
+    faucetUrl: 'https://faucet.testnet.sui.io/gas'
+  },
+  devnet: {
+    name: 'Devnet',
+    url: getFullnodeUrl('devnet'),
+    faucetUrl: 'https://faucet.devnet.sui.io/gas'
+  },
+  localnet: {
+    name: 'Localnet',
+    url: 'http://127.0.0.1:9000',
+    faucetUrl: 'http://127.0.0.1:9123/gas'
+  }
+}
+
+// Current network (from environment or default to devnet)
+export const CURRENT_NETWORK = process.env.REACT_APP_SUI_NETWORK || 'devnet'
 
 /**
- * Builds a transaction for campaign creation
- * @param {Object} campaignData - Campaign data
- * @param {string} campaignData.title - Campaign title
- * @param {string} campaignData.description - Campaign description
- * @param {number} campaignData.goal - Funding goal in SUI
- * @param {number} campaignData.deadline - Deadline timestamp
- * @param {string} campaignData.imageUrl - Campaign image URL
- * @param {Array} campaignData.beneficiaries - Array of beneficiary objects
- * @returns {TransactionBlock} Prepared transaction block
+ * Get SuiClient instance for current network
  */
-export const buildCreateCampaignTransaction = (campaignData) => {
-  const tx = new TransactionBlock()
-  
-  // Convert goal to MIST
-  const goalMist = Math.floor(campaignData.goal * 1000000000)
-  
-  // Prepare beneficiaries vector
-  const beneficiaries = tx.makeMoveVec({
-    type: `${PACKAGE_ID}::campaign::Beneficiary`,
-    elements: campaignData.beneficiaries.map(beneficiary => 
-      tx.moveCall({
-        target: `${PACKAGE_ID}::campaign::create_beneficiary`,
-        arguments: [
-          tx.pure(beneficiary.address),
-          tx.pure(beneficiary.percentage)
-        ]
-      })
-    )
-  })
-
-  // Main campaign creation call
-  tx.moveCall({
-    target: `${PACKAGE_ID}::campaign::create_campaign`,
-    arguments: [
-      tx.pure(campaignData.title),
-      tx.pure(campaignData.description),
-      tx.pure(goalMist),
-      tx.pure(campaignData.deadline),
-      tx.pure(campaignData.imageUrl || ''),
-      beneficiaries
-    ]
-  })
-
-  return tx
+export const getSuiClient = () => {
+  const networkUrl = NETWORKS[CURRENT_NETWORK]?.url
+  if (!networkUrl) {
+    throw new Error(`Unknown network: ${CURRENT_NETWORK}`)
+  }
+  return new SuiClient({ url: networkUrl })
 }
 
 /**
- * Builds a transaction for campaign contribution
- * @param {string} campaignId - Campaign object ID
- * @param {number} amount - Contribution amount in SUI
- * @returns {TransactionBlock} Prepared transaction block
+ * Get faucet URL for current network
  */
-export const buildContributeTransaction = (campaignId, amount) => {
-  const tx = new TransactionBlock()
-  const amountMist = Math.floor(amount * 1000000000)
-  
-  // Split coins for contribution
-  const [contributionCoin] = tx.splitCoins(tx.gas, [tx.pure(amountMist)])
-  
-  tx.moveCall({
-    target: `${PACKAGE_ID}::campaign::contribute`,
-    arguments: [
-      tx.object(campaignId),
-      contributionCoin,
-      tx.object('0x6') // Clock object
-    ]
-  })
-
-  return tx
+export const getFaucetUrl = () => {
+  return NETWORKS[CURRENT_NETWORK]?.faucetUrl
 }
 
 /**
- * Parses campaign events from transaction result
- * @param {Array} events - Array of transaction events
- * @returns {Array} Parsed campaign events
- */
-export const parseCampaignEvents = (events) => {
-  if (!events) return []
-  
-  return events
-    .filter(event => event.type.includes('::campaign::'))
-    .map(event => {
-      const eventType = event.type.split('::').pop()
-      
-      switch (eventType) {
-        case 'CampaignCreated':
-          return {
-            type: 'CampaignCreated',
-            campaignId: event.parsedJson.campaign_id,
-            creator: event.parsedJson.creator,
-            goal: event.parsedJson.goal,
-            deadline: event.parsedJson.deadline,
-            timestamp: Date.now()
-          }
-        
-        case 'ContributionMade':
-          return {
-            type: 'ContributionMade',
-            campaignId: event.parsedJson.campaign_id,
-            contributor: event.parsedJson.contributor,
-            amount: event.parsedJson.amount,
-            timestamp: Date.now()
-          }
-        
-        case 'FundsDistributed':
-          return {
-            type: 'FundsDistributed',
-            campaignId: event.parsedJson.campaign_id,
-            amount: event.parsedJson.amount,
-            timestamp: Date.now()
-          }
-        
-        case 'RefundProcessed':
-          return {
-            type: 'RefundProcessed',
-            campaignId: event.parsedJson.campaign_id,
-            totalRefunded: event.parsedJson.total_refunded,
-            timestamp: Date.now()
-          }
-        
-        default:
-          return null
-      }
-    })
-    .filter(event => event !== null)
-}
-
-/**
- * Parses prediction market events from transaction result
- * @param {Array} events - Array of transaction events
- * @returns {Array} Parsed market events
- */
-export const parseMarketEvents = (events) => {
-  if (!events) return []
-  
-  return events
-    .filter(event => event.type.includes('::prediction_market::'))
-    .map(event => {
-      const eventType = event.type.split('::').pop()
-      
-      switch (eventType) {
-        case 'MarketCreated':
-          return {
-            type: 'MarketCreated',
-            marketId: event.parsedJson.market_id,
-            campaignId: event.parsedJson.campaign_id,
-            creator: event.parsedJson.creator,
-            resolutionTime: event.parsedJson.resolution_time,
-            timestamp: Date.now()
-          }
-        
-        case 'BetPlaced':
-          return {
-            type: 'BetPlaced',
-            marketId: event.parsedJson.market_id,
-            better: event.parsedJson.better,
-            amount: event.parsedJson.amount,
-            outcome: event.parsedJson.outcome,
-            timestamp: Date.now()
-          }
-        
-        case 'MarketResolved':
-          return {
-            type: 'MarketResolved',
-            marketId: event.parsedJson.market_id,
-            outcome: event.parsedJson.outcome,
-            timestamp: Date.now()
-          }
-        
-        case 'WinningsClaimed':
-          return {
-            type: 'WinningsClaimed',
-            marketId: event.parsedJson.market_id,
-            better: event.parsedJson.better,
-            amount: event.parsedJson.amount,
-            timestamp: Date.now()
-          }
-        
-        default:
-          return null
-      }
-    })
-    .filter(event => event !== null)
-}
-
-/**
- * Validates Sui address format
- * @param {string} address - Address to validate
- * @returns {boolean} True if address is valid
+ * Check if address is valid Sui address
  */
 export const isValidSuiAddress = (address) => {
-  if (typeof address !== 'string') return false
-  
-  // Sui addresses are 32 bytes, represented as 64 hex characters starting with 0x
   return /^0x[0-9a-fA-F]{64}$/.test(address)
 }
 
 /**
- * Formats error message from transaction failure
- * @param {Error} error - Transaction error
- * @returns {string} User-friendly error message
+ * Format address for display
  */
-export const formatTransactionError = (error) => {
-  if (!error.message) return 'Transaction failed. Please try again.'
-  
-  // Parse common error patterns
-  if (error.message.includes('user rejected')) {
-    return 'Transaction was rejected by your wallet.'
-  }
-  
-  if (error.message.includes('insufficient gas')) {
-    return 'Insufficient gas. Please add more SUI to your wallet.'
-  }
-  
-  if (error.message.includes('object not found')) {
-    return 'Object not found. The item may have been moved or deleted.'
-  }
-  
-  if (error.message.includes('invalid type')) {
-    return 'Invalid transaction parameters. Please check your input.'
-  }
-  
-  // Default error message
-  return `Transaction failed: ${error.message}`
+export const formatAddress = (address, start = 6, end = 4) => {
+  if (!address) return ''
+  return `${address.slice(0, start)}...${address.slice(-end)}`
 }
 
 /**
- * Retries a transaction with exponential backoff
- * @param {Function} transactionFn - Transaction function to retry
- * @param {number} maxRetries - Maximum number of retries
- * @returns {Promise} Transaction result
+ * Convert SUI amount to smallest unit (MIST)
  */
-export const retryTransaction = async (transactionFn, maxRetries = 3) => {
-  let lastError
-  let delay = 1000 // Start with 1 second delay
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await transactionFn()
-    } catch (error) {
-      lastError = error
-      console.warn(`Transaction attempt ${attempt} failed:`, error)
-      
-      if (attempt === maxRetries) break
-      
-      // Wait with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, delay))
-      delay *= 2 // Double the delay for next retry
-    }
+export const suiToMist = (sui) => {
+  return BigInt(Math.floor(parseFloat(sui) * 1e9))
+}
+
+/**
+ * Convert MIST to SUI
+ */
+export const mistToSui = (mist) => {
+  return parseFloat(mist) / 1e9
+}
+
+/**
+ * Get transaction link for explorer
+ */
+export const getTransactionLink = (digest) => {
+  const baseUrls = {
+    mainnet: 'https://suiexplorer.com/txblock',
+    testnet: 'https://testnet.suiexplorer.com/txblock',
+    devnet: 'https://devnet.suiexplorer.com/txblock',
+    localnet: null
   }
-  
-  throw lastError
+
+  const baseUrl = baseUrls[CURRENT_NETWORK]
+  return baseUrl ? `${baseUrl}/${digest}` : null
+}
+
+/**
+ * Get address link for explorer
+ */
+export const getAddressLink = (address) => {
+  const baseUrls = {
+    mainnet: 'https://suiexplorer.com/address',
+    testnet: 'https://testnet.suiexplorer.com/address',
+    devnet: 'https://devnet.suiexplorer.com/address',
+    localnet: null
+  }
+
+  const baseUrl = baseUrls[CURRENT_NETWORK]
+  return baseUrl ? `${baseUrl}/${address}` : null
+}
+
+/**
+ * Get object link for explorer
+ */
+export const getObjectLink = (objectId) => {
+  const baseUrls = {
+    mainnet: 'https://suiexplorer.com/object',
+    testnet: 'https://testnet.suiexplorer.com/object',
+    devnet: 'https://devnet.suiexplorer.com/object',
+    localnet: null
+  }
+
+  const baseUrl = baseUrls[CURRENT_NETWORK]
+  return baseUrl ? `${baseUrl}/${objectId}` : null
+}
+
+/**
+ * Wait for transaction confirmation
+ */
+export const waitForTransaction = async (suiClient, digest, timeout = 30000) => {
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < timeout) {
+    try {
+      const txResponse = await suiClient.getTransactionBlock({
+        digest,
+        options: {
+          showEffects: true,
+          showEvents: true
+        }
+      })
+
+      if (txResponse) {
+        return txResponse
+      }
+    } catch (error) {
+      // Transaction not found yet, continue waiting
+    }
+
+    // Wait 1 second before checking again
+    await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+
+  throw new Error('Transaction confirmation timeout')
+}
+
+/**
+ * Estimate gas for transaction
+ */
+export const estimateGas = async (suiClient, transaction) => {
+  try {
+    const dryRun = await suiClient.dryRunTransactionBlock({
+      transactionBlock: transaction
+    })
+
+    return {
+      gasUsed: dryRun.effects.gasUsed,
+      gasBudget: dryRun.effects.gasBudget,
+      estimatedFee: mistToSui(dryRun.effects.gasFee)
+    }
+  } catch (error) {
+    console.error('Failed to estimate gas:', error)
+    return null
+  }
+}
+
+/**
+ * Get balance for address
+ */
+export const getBalance = async (suiClient, address) => {
+  try {
+    const balance = await suiClient.getBalance({
+      owner: address,
+      coinType: '0x2::sui::SUI'
+    })
+
+    return mistToSui(balance.totalBalance)
+  } catch (error) {
+    console.error('Failed to get balance:', error)
+    return 0
+  }
+}
+
+/**
+ * Get all coins for address
+ */
+export const getCoins = async (suiClient, address, coinType = '0x2::sui::SUI') => {
+  try {
+    const coins = await suiClient.getCoins({
+      owner: address,
+      coinType
+    })
+
+    return coins.data
+  } catch (error) {
+    console.error('Failed to get coins:', error)
+    return []
+  }
+}
+
+/**
+ * Merge coins to reduce number of coin objects
+ */
+export const mergeCoins = async (suiClient, signer, coinType, coinsToMerge) => {
+  if (coinsToMerge.length < 2) return
+
+  const primaryCoin = coinsToMerge[0]
+  const coinsToMergeIds = coinsToMerge.slice(1).map(coin => coin.coinObjectId)
+
+  const tx = await signer.signAndExecuteTransaction({
+    transaction: {
+      kind: 'moveCall',
+      data: {
+        packageObjectId: '0x2',
+        module: 'pay',
+        function: 'join_vec',
+        typeArguments: [coinType],
+        arguments: [
+          primaryCoin.coinObjectId,
+          coinsToMergeIds
+        ],
+        gasBudget: 10000
+      }
+    }
+  })
+
+  return tx
+}
+
+/**
+ * Split coin into smaller amounts
+ */
+export const splitCoin = async (signer, coinId, amounts) => {
+  const tx = await signer.signAndExecuteTransaction({
+    transaction: {
+      kind: 'moveCall',
+      data: {
+        packageObjectId: '0x2',
+        module: 'coin',
+        function: 'split_vec',
+        typeArguments: ['0x2::sui::SUI'],
+        arguments: [
+          coinId,
+          amounts.map(amount => suiToMist(amount).toString())
+        ],
+        gasBudget: 15000
+      }
+    }
+  })
+
+  return tx
+}
+
+/**
+ * Get events for a package or object
+ */
+export const getEvents = async (suiClient, query) => {
+  try {
+    const events = await suiClient.queryEvents({
+      query,
+      limit: 50,
+      order: 'descending'
+    })
+
+    return events.data
+  } catch (error) {
+    console.error('Failed to get events:', error)
+    return []
+  }
+}
+
+/**
+ * Subscribe to events (for real-time updates)
+ */
+export const subscribeToEvents = (suiClient, query, callback) => {
+  const subscriptionId = suiClient.subscribeEvent({
+    filter: query,
+    onMessage: callback
+  })
+
+  return subscriptionId
+}
+
+/**
+ * Unsubscribe from events
+ */
+export const unsubscribeFromEvents = (suiClient, subscriptionId) => {
+  suiClient.unsubscribeEvent({ id: subscriptionId })
 }

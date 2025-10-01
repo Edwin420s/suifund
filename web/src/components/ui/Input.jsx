@@ -1,25 +1,57 @@
-const Input = ({ 
-  label, 
+import { forwardRef } from 'react'
+import { motion } from 'framer-motion'
+
+const Input = forwardRef(({
+  label,
   error,
-  className = '', 
-  ...props 
-}) => {
+  helperText,
+  className = '',
+  containerClassName = '',
+  labelClassName = '',
+  inputClassName = '',
+  required = false,
+  ...props
+}, ref) => {
+  const baseInputClasses = 'w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+
+  const inputClasses = `${baseInputClasses} ${inputClassName}`
+
   return (
-    <div className="w-full">
+    <motion.div
+      className={`space-y-1 ${containerClassName}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+    >
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className={`block text-sm font-medium text-gray-300 ${labelClassName}`}>
           {label}
+          {required && <span className="text-red-400 ml-1">*</span>}
         </label>
       )}
       <input
-        className={`w-full bg-slate-900 border ${error ? 'border-red-500' : 'border-slate-700'} rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 ${className}`}
+        ref={ref}
+        className={`${inputClasses} ${error ? 'border-red-500 focus:ring-red-500' : ''} ${className}`}
         {...props}
       />
       {error && (
-        <p className="mt-1 text-sm text-red-500">{error}</p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-sm text-red-400"
+        >
+          {error}
+        </motion.p>
       )}
-    </div>
+      {helperText && !error && (
+        <p className="text-sm text-gray-500">
+          {helperText}
+        </p>
+      )}
+    </motion.div>
   )
-}
+})
+
+Input.displayName = 'Input'
 
 export default Input

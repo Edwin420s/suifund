@@ -1,284 +1,352 @@
 /**
- * Monitoring and Analytics Utilities
- * 
- * Provides monitoring, analytics, and error tracking functionality:
- * - Error tracking and reporting
- * - User analytics and behavior tracking
- * - Performance monitoring
- * - Transaction analytics
+ * Monitoring and analytics utilities for SuiFund
  */
 
-// Mock analytics service - replace with real service in production
-class AnalyticsService {
-  constructor() {
-    this.initialized = false
-    this.queue = []
-  }
+// Analytics events
+export const ANALYTICS_EVENTS = {
+  // User actions
+  WALLET_CONNECTED: 'wallet_connected',
+  WALLET_DISCONNECTED: 'wallet_disconnected',
 
-  /**
-   * Initializes analytics service
-   * @param {string} apiKey - Analytics service API key
-   */
-  init(apiKey) {
-    if (this.initialized) return
-    
-    // Initialize your analytics service here
-    // Example: Sentry.init({ dsn: apiKey })
-    
-    this.initialized = true
-    this.flushQueue()
-  }
+  // Campaign actions
+  CAMPAIGN_CREATED: 'campaign_created',
+  CAMPAIGN_CONTRIBUTED: 'campaign_contributed',
+  CAMPAIGN_REFUNDED: 'campaign_refunded',
 
-  /**
-   * Tracks page view
-   * @param {string} page - Page name or URL
-   * @param {Object} properties - Additional properties
-   */
-  trackPageView(page, properties = {}) {
-    const event = {
-      type: 'pageview',
-      page,
-      timestamp: Date.now(),
-      properties
+  // Market actions
+  BET_PLACED: 'bet_placed',
+  MARKET_RESOLVED: 'market_resolved',
+
+  // Governance actions
+  PROPOSAL_CREATED: 'proposal_created',
+  PROPOSAL_VOTED: 'proposal_voted',
+  PROPOSAL_EXECUTED: 'proposal_executed',
+
+  // Navigation
+  PAGE_VIEW: 'page_view',
+  BUTTON_CLICK: 'button_click',
+
+  // Errors
+  TRANSACTION_FAILED: 'transaction_failed',
+  API_ERROR: 'api_error'
+}
+
+/**
+ * Track analytics event
+ */
+export const trackEvent = (eventName, parameters = {}) => {
+  try {
+    // Google Analytics 4
+    if (window.gtag) {
+      window.gtag('event', eventName, {
+        ...parameters,
+        timestamp: Date.now(),
+        user_agent: navigator.userAgent,
+        url: window.location.href
+      })
     }
-    
-    this.sendEvent(event)
-  }
 
-  /**
-   * Tracks user action
-   * @param {string} action - Action name
-   * @param {Object} properties - Action properties
-   */
-  trackAction(action, properties = {}) {
-    const event = {
-      type: 'action',
-      action,
-      timestamp: Date.now(),
-      properties
+    // Custom analytics endpoint
+    if (process.env.REACT_APP_ANALYTICS_ENDPOINT) {
+      fetch(process.env.REACT_APP_ANALYTICS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event: eventName,
+          parameters,
+          timestamp: new Date().toISOString(),
+          userId: getUserId(),
+          sessionId: getSessionId()
+        })
+      }).catch(error => {
+        console.warn('Failed to send analytics:', error)
+      })
     }
-    
-    this.sendEvent(event)
-  }
 
-  /**
-   * Tracks transaction
-   * @param {string} type - Transaction type
-   * @param {Object} data - Transaction data
-   */
-  trackTransaction(type, data) {
-    const event = {
-      type: 'transaction',
-      transactionType: type,
-      timestamp: Date.now(),
-      ...data
-    }
-    
-    this.sendEvent(event)
-  }
-
-  /**
-   * Captures error
-   * @param {Error} error - Error object
-   * @param {Object} context - Error context
-   */
-  captureError(error, context = {}) {
-    const event = {
-      type: 'error',
-      error: {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      },
-      timestamp: Date.now(),
-      context
-    }
-    
-    this.sendEvent(event)
-    
-    // Also log to console in development
+    // Console logging in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('Captured error:', error, context)
+      console.log(`📊 Analytics: ${eventName}`, parameters)
     }
-  }
-
-  /**
-   * Tracks performance metric
-   * @param {string} metric - Metric name
-   * @param {number} value - Metric value
-   * @param {Object} tags - Metric tags
-   */
-  trackPerformance(metric, value, tags = {}) {
-    const event = {
-      type: 'performance',
-      metric,
-      value,
-      timestamp: Date.now(),
-      tags
-    }
-    
-    this.sendEvent(event)
-  }
-
-  /**
-   * Sends event to analytics service
-   * @param {Object} event - Event data
-   */
-  sendEvent(event) {
-    if (!this.initialized) {
-      this.queue.push(event)
-      return
-    }
-
-    // Send to your analytics service
-    // Example: Sentry.captureEvent(event)
-    
-    console.log('Analytics event:', event)
-  }
-
-  /**
-   * Flushes queued events
-   */
-  flushQueue() {
-    while (this.queue.length > 0) {
-      const event = this.queue.shift()
-      this.sendEvent(event)
-    }
+  } catch (error) {
+    console.warn('Analytics tracking failed:', error)
   }
 }
 
-// Create global analytics instance
-export const analytics = new AnalyticsService()
-
 /**
- * Error boundary utility for React components
- * @param {Error} error - Caught error
- * @param {Object} errorInfo - Error info from React
+ * Track page view
  */
-export const captureReactError = (error, errorInfo) => {
-  analytics.captureError(error, {
-    componentStack: errorInfo.componentStack,
-    type: 'react_error_boundary'
+export const trackPageView = (pageName, pageData = {}) => {
+  trackEvent(ANALYTICS_EVENTS.PAGE_VIEW, {
+    page_name: pageName,
+    ...pageData
   })
 }
 
 /**
- * Transaction monitoring utility
+ * Track user interaction
  */
-export const transactionMonitor = {
-  /**
-   * Starts transaction timing
-   * @param {string} transactionId - Transaction identifier
-   * @returns {Function} Function to end timing and record metric
-   */
-  startTiming(transactionId) {
-    const startTime = performance.now()
-    
-    return (status = 'completed') => {
-      const duration = performance.now() - startTime
-      
-      analytics.trackPerformance('transaction_duration', duration, {
-        transactionId,
-        status
+export const trackInteraction = (element, action, data = {}) => {
+  trackEvent(ANALYTICS_EVENTS.BUTTON_CLICK, {
+    element,
+    action,
+    ...data
+  })
+}
+
+/**
+ * Track transaction
+ */
+export const trackTransaction = (type, success, data = {}) => {
+  trackEvent(success ? type : ANALYTICS_EVENTS.TRANSACTION_FAILED, {
+    success,
+    ...data
+  })
+}
+
+/**
+ * Track error
+ */
+export const trackError = (error, context = {}) => {
+  trackEvent(ANALYTICS_EVENTS.API_ERROR, {
+    error_message: error.message,
+    error_stack: error.stack,
+    ...context
+  })
+
+  // Also log to error reporting service
+  if (process.env.REACT_APP_ERROR_REPORTING_ENDPOINT) {
+    fetch(process.env.REACT_APP_ERROR_REPORTING_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        error: {
+          message: error.message,
+          stack: error.stack,
+          ...context
+        },
+        timestamp: new Date().toISOString(),
+        userId: getUserId(),
+        sessionId: getSessionId(),
+        userAgent: navigator.userAgent,
+        url: window.location.href
       })
-      
-      return duration
-    }
-  },
-
-  /**
-   * Records transaction success
-   * @param {string} type - Transaction type
-   * @param {Object} data - Transaction data
-   */
-  recordSuccess(type, data) {
-    analytics.trackTransaction(type, {
-      status: 'success',
-      ...data
-    })
-  },
-
-  /**
-   * Records transaction failure
-   * @param {string} type - Transaction type
-   * @param {Error} error - Error object
-   * @param {Object} data - Transaction data
-   */
-  recordFailure(type, error, data) {
-    analytics.trackTransaction(type, {
-      status: 'failed',
-      error: error.message,
-      ...data
-    })
-    
-    analytics.captureError(error, {
-      transactionType: type,
-      ...data
+    }).catch(reportError => {
+      console.warn('Failed to report error:', reportError)
     })
   }
 }
 
 /**
- * User analytics utility
+ * Performance monitoring
  */
-export const userAnalytics = {
-  /**
-   * Tracks wallet connection
-   * @param {string} walletType - Wallet type (Suiet, Ethos, etc.)
-   * @param {string} address - User address
-   */
-  trackWalletConnect(walletType, address) {
-    analytics.trackAction('wallet_connect', {
-      walletType,
-      address: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null
+export const measurePerformance = (name, fn) => {
+  const start = performance.now()
+  try {
+    const result = fn()
+    const end = performance.now()
+    trackEvent('performance_measurement', {
+      name,
+      duration: end - start,
+      success: true
     })
-  },
-
-  /**
-   * Tracks campaign creation
-   * @param {Object} campaignData - Campaign data
-   */
-  trackCampaignCreate(campaignData) {
-    analytics.trackAction('campaign_create', {
-      goal: campaignData.goal,
-      deadline: campaignData.deadline,
-      beneficiaryCount: campaignData.beneficiaries?.length || 0
+    return result
+  } catch (error) {
+    const end = performance.now()
+    trackEvent('performance_measurement', {
+      name,
+      duration: end - start,
+      success: false,
+      error: error.message
     })
-  },
-
-  /**
-   * Tracks campaign contribution
-   * @param {string} campaignId - Campaign ID
-   * @param {number} amount - Contribution amount
-   */
-  trackCampaignContribute(campaignId, amount) {
-    analytics.trackAction('campaign_contribute', {
-      campaignId,
-      amount
-    })
-  },
-
-  /**
-   * Tracks prediction market bet
-   * @param {string} marketId - Market ID
-   * @param {string} outcome - Bet outcome
-   * @param {number} amount - Bet amount
-   */
-  trackMarketBet(marketId, outcome, amount) {
-    analytics.trackAction('market_bet', {
-      marketId,
-      outcome,
-      amount
-    })
+    throw error
   }
 }
 
-// Initialize analytics in production
-if (import.meta.env.PROD) {
-  const analyticsKey = import.meta.env.VITE_ANALYTICS_API_KEY
-  if (analyticsKey) {
-    analytics.init(analyticsKey)
+/**
+ * Monitor Web Vitals
+ */
+export const monitorWebVitals = () => {
+  // First Contentful Paint
+  if ('PerformanceObserver' in window) {
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name === 'first-contentful-paint') {
+            trackEvent('web_vitals', {
+              metric: 'FCP',
+              value: entry.startTime
+            })
+          }
+        }
+      })
+      observer.observe({ entryTypes: ['paint'] })
+    } catch (error) {
+      console.warn('FCP monitoring failed:', error)
+    }
+  }
+
+  // Largest Contentful Paint
+  if ('PerformanceObserver' in window) {
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          trackEvent('web_vitals', {
+            metric: 'LCP',
+            value: entry.startTime
+          })
+        }
+      })
+      observer.observe({ entryTypes: ['largest-contentful-paint'] })
+    } catch (error) {
+      console.warn('LCP monitoring failed:', error)
+    }
+  }
+
+  // First Input Delay
+  if ('PerformanceObserver' in window) {
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          trackEvent('web_vitals', {
+            metric: 'FID',
+            value: entry.processingStart - entry.startTime
+          })
+        }
+      })
+      observer.observe({ entryTypes: ['first-input'] })
+    } catch (error) {
+      console.warn('FID monitoring failed:', error)
+    }
+  }
+
+  // Cumulative Layout Shift
+  if ('PerformanceObserver' in window) {
+    try {
+      let clsValue = 0
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) {
+            clsValue += entry.value
+          }
+        }
+      })
+      observer.observe({ entryTypes: ['layout-shift'] })
+
+      // Report CLS on page unload
+      window.addEventListener('beforeunload', () => {
+        trackEvent('web_vitals', {
+          metric: 'CLS',
+          value: clsValue
+        })
+      })
+    } catch (error) {
+      console.warn('CLS monitoring failed:', error)
+    }
   }
 }
 
-export default analytics
+/**
+ * Get or create user ID
+ */
+const getUserId = () => {
+  let userId = localStorage.getItem('suifund_user_id')
+  if (!userId) {
+    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    localStorage.setItem('suifund_user_id', userId)
+  }
+  return userId
+}
+
+/**
+ * Get or create session ID
+ */
+const getSessionId = () => {
+  let sessionId = sessionStorage.getItem('suifund_session_id')
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    sessionStorage.setItem('suifund_session_id', sessionId)
+  }
+  return sessionId
+}
+
+/**
+ * Monitor network requests
+ */
+export const monitorNetworkRequests = () => {
+  if ('PerformanceObserver' in window) {
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.initiatorType === 'fetch' || entry.initiatorType === 'xmlhttprequest') {
+            trackEvent('network_request', {
+              url: entry.name,
+              duration: entry.responseEnd - entry.requestStart,
+              status: entry.responseStatus || 0,
+              size: entry.transferSize
+            })
+          }
+        }
+      })
+      observer.observe({ entryTypes: ['resource'] })
+    } catch (error) {
+      console.warn('Network monitoring failed:', error)
+    }
+  }
+}
+
+/**
+ * Monitor memory usage
+ */
+export const monitorMemoryUsage = () => {
+  if ('memory' in performance) {
+    setInterval(() => {
+      const memory = performance.memory
+      trackEvent('memory_usage', {
+        used: memory.usedJSHeapSize,
+        total: memory.totalJSHeapSize,
+        limit: memory.jsHeapSizeLimit
+      })
+    }, 30000) // Every 30 seconds
+  }
+}
+
+/**
+ * Initialize monitoring
+ */
+export const initializeMonitoring = () => {
+  // Initialize web vitals monitoring
+  monitorWebVitals()
+
+  // Initialize network monitoring
+  monitorNetworkRequests()
+
+  // Initialize memory monitoring
+  monitorMemoryUsage()
+
+  // Track initial page load
+  trackPageView('app_loaded', {
+    user_agent: navigator.userAgent,
+    screen_resolution: `${window.screen.width}x${window.screen.height}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  })
+
+  // Global error handler
+  window.addEventListener('error', (event) => {
+    trackError(event.error, {
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno
+    })
+  })
+
+  // Unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', (event) => {
+    trackError(new Error(event.reason), {
+      type: 'unhandled_promise_rejection'
+    })
+  })
+}

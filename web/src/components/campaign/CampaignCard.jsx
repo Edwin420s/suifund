@@ -1,73 +1,134 @@
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import Button from '../ui/Button'
+import Card from '../ui/Card'
 import Progress from '../ui/Progress'
-import { formatSUI, calculateProgress, formatDate, timeRemaining } from '../../utils/format'
+import Button from '../ui/Button'
+import { formatCurrency, formatDate } from '../../utils/format'
 
-const CampaignCard = ({ campaign, onClick }) => {
-  const progress = calculateProgress(campaign.raised, campaign.goal)
-  const remainingTime = timeRemaining(campaign.deadline)
+const CampaignCard = ({ campaign, showActions = true }) => {
+  const {
+    id,
+    title,
+    description,
+    creator,
+    goal,
+    raised,
+    deadline,
+    category,
+    image,
+    status,
+    backersCount
+  } = campaign
+
+  const progress = (raised / goal) * 100
+  const daysLeft = Math.max(0, Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24)))
+  const isActive = status === 'active' && daysLeft > 0
+  const isSuccessful = status === 'successful'
+  const isFailed = status === 'failed'
+
+  const getStatusColor = () => {
+    if (isSuccessful) return 'text-green-400'
+    if (isFailed) return 'text-red-400'
+    if (isActive) return 'text-blue-400'
+    return 'text-gray-400'
+  }
+
+  const getStatusText = () => {
+    if (isSuccessful) return 'Successful'
+    if (isFailed) return 'Failed'
+    if (isActive) return `${daysLeft} days left`
+    return 'Ended'
+  }
 
   return (
-    <motion.div 
-      className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-primary-500 transition-colors duration-200 cursor-pointer"
-      whileHover={{ y: -5 }}
-      onClick={onClick}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
     >
-      <div className="h-48 bg-gradient-to-br from-primary-900 to-primary-700 flex items-center justify-center relative">
-        <div className="text-4xl">🚀</div>
-        {campaign.imageUrl && (
-          <img 
-            src={campaign.imageUrl} 
-            alt={campaign.title}
-            className="absolute inset-0 w-full h-full object-cover opacity-50"
-          />
-        )}
-      </div>
-      
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="text-xl font-semibold mb-2 truncate">{campaign.title}</h3>
-          <span className={`px-2 py-1 rounded text-xs font-medium min-w-[70px] text-center ${
-            campaign.status === 'active' ? 'bg-green-500/20 text-green-400' :
-            campaign.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
-            'bg-red-500/20 text-red-400'
-          }`}>
-            {campaign.status}
-          </span>
-        </div>
-        
-        <p className="text-gray-400 text-sm mb-4 line-clamp-2 h-10">
-          {campaign.description}
-        </p>
-        
-        <div className="space-y-3 mb-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Raised</span>
-            <span className="font-medium">{formatSUI(campaign.raised)}</span>
+      <Card className="overflow-hidden h-full">
+        {/* Campaign Image */}
+        <div className="relative h-48 bg-gradient-to-br from-blue-600 to-purple-600">
+          {image ? (
+            <img
+              src={image}
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-4xl">📊</span>
+            </div>
+          )}
+
+          {/* Status Badge */}
+          <div className="absolute top-3 right-3">
+            <span className={`px-2 py-1 text-xs font-medium rounded-full bg-black/50 backdrop-blur-sm ${getStatusColor()}`}>
+              {getStatusText()}
+            </span>
           </div>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Goal</span>
-            <span className="font-medium">{formatSUI(campaign.goal)}</span>
-          </div>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Backers</span>
-            <span className="font-medium">{campaign.backers}</span>
-          </div>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">{remainingTime.includes('Ended') ? 'Ended' : 'Ends'}</span>
-            <span className="font-medium">{remainingTime.includes('Ended') ? formatDate(campaign.deadline) : remainingTime}</span>
+
+          {/* Category Badge */}
+          <div className="absolute top-3 left-3">
+            <span className="px-2 py-1 text-xs font-medium rounded-full bg-black/50 backdrop-blur-sm text-white">
+              {category}
+            </span>
           </div>
         </div>
-        
-        <Progress value={progress} className="mb-4" showLabel />
-        
-        <Button className="w-full">
-          View Details
-        </Button>
-      </div>
+
+        <div className="p-6 flex flex-col flex-1">
+          {/* Title and Description */}
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">
+              {title}
+            </h3>
+            <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+              {description}
+            </p>
+          </div>
+
+          {/* Progress */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-gray-400">
+                {formatCurrency(raised)} raised
+              </span>
+              <span className="text-gray-400">
+                {formatCurrency(goal)} goal
+              </span>
+            </div>
+            <Progress value={raised} max={goal} />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>{progress.toFixed(1)}% funded</span>
+              <span>{backersCount} backers</span>
+            </div>
+          </div>
+
+          {/* Creator */}
+          <div className="mb-4">
+            <p className="text-xs text-gray-500">
+              by {creator.slice(0, 6)}...{creator.slice(-4)}
+            </p>
+          </div>
+
+          {/* Actions */}
+          {showActions && (
+            <div className="flex space-x-2">
+              <Link to={`/campaigns/${id}`} className="flex-1">
+                <Button variant="outline" size="sm" className="w-full">
+                  View Details
+                </Button>
+              </Link>
+              {isActive && (
+                <Button size="sm" className="px-4">
+                  Back This
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
     </motion.div>
   )
 }

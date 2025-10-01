@@ -1,212 +1,250 @@
-import { useCallback } from 'react'
-import { useWalletClient } from './useWalletClient'
+import { useState, useEffect, useCallback } from 'react'
+import { useWallet } from '@mysten/wallet-kit'
 import { useAppStore } from '../stores/useAppStore'
-import { TransactionBlock } from '@mysten/sui.js'
-import { PACKAGE_ID, TREASURY_MODULE } from '../utils/constants'
+import { showToast } from '../utils/notifications'
 
-/**
- * useGovernance Hook
- * 
- * Provides governance functionality including:
- * - Proposal creation and management
- * - Voting on proposals with voting power
- * - Proposal execution for approved proposals
- * - Treasury fee collection and management
- * 
- * @returns {Object} Governance functions and state
- */
 export const useGovernance = () => {
-  const { executeTransaction } = useWalletClient()
-  const { setLoading, addToast } = useAppStore()
+  const { signAndExecuteTransaction } = useWallet()
+  const { suiClient } = useAppStore()
+  const [proposals, setProposals] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [userVotes, setUserVotes] = useState(new Map())
+
+  // Treasury contract address - should be from constants
+  const TREASURY_PACKAGE_ID = process.env.REACT_APP_TREASURY_PACKAGE_ID
+  const TREASURY_OBJECT_ID = process.env.REACT_APP_TREASURY_OBJECT_ID
 
   /**
-   * Creates a new governance proposal
-   * @param {Object} proposalData - Proposal data
-   * @param {string} proposalData.title - Proposal title
-   * @param {string} proposalData.description - Proposal description
-   * @param {number} proposalData.amount - Requested amount in SUI
-   * @param {string} proposalData.recipient - Recipient address
-   * @param {number} proposalData.duration - Voting duration in days
-   * @returns {Promise<Object>} Transaction result
+   * Fetch all proposals
    */
-  const createProposal = useCallback(async (proposalData) => {
-    setLoading(true)
+  const fetchProposals = useCallback(async () => {
+    if (!suiClient || !TREASURY_OBJECT_ID) return
+
     try {
-      const tx = new TransactionBlock()
-      
-      // Convert amount to MIST and duration to milliseconds
-      const amountMist = Math.floor(proposalData.amount * 1000000000)
-      const durationMs = proposalData.duration * 24 * 60 * 60 * 1000
+      setLoading(true)
 
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${TREASURY_MODULE}::create_proposal`,
-        arguments: [
-          tx.object(proposalData.treasuryId), // Treasury object
-          tx.pure(proposalData.title),
-          tx.pure(proposalData.description),
-          tx.pure(amountMist),
-          tx.pure(proposalData.recipient),
-          tx.pure(durationMs),
-          tx.object('0x6') // Clock object
-        ]
+      // Get treasury object
+      const treasuryObj = await suiClient.getObject({
+        id: TREASURY_OBJECT_ID,
+        options: { showContent: true }
       })
 
-      const result = await executeTransaction(tx)
-      
-      addToast({
-        message: 'Proposal created successfully!',
-        type: 'success'
+      if (!treasuryObj.data?.content?.fields?.proposals) {
+        setProposals([])
+        return
+      }
+
+      const proposalIds = treasuryObj.data.content.fields.proposals
+      const proposalDetails = []
+
+      // Fetch each proposal
+      for (const proposalId of proposalIds) {
+        try {
+          const proposalObj = await suiClient.getObject({
+            id: proposalId,
+            options: { showContent: true }
+          })
+
+          if (proposalObj.data?.content?.fields) {
+            const fields = proposalObj.data.content.fields
+            proposalDetails.push({
+              id: proposalId,
+              title: fields.title,
+              description: fields.description,
+              proposer: fields.proposer,
+              startTime: new Date(parseInt(fields.start_time)),
+              endTime: new Date(parseInt(fields.end_time)),
+              status: fields.status,
+              votesFor: parseInt(fields.votes_for || 0),
+              votesAgainst: parseInt(fields.votes_against || 0),
+              totalVotes: parseInt(fields.votes_for || 0) + parseInt(fields.votes_against || 0),
+              quorum: parseInt(fields.quorum || 0),
+              executed: fields.executed || false,
+              executionTime: fields.execution_time ? new Date(parseInt(fields.execution_time)) : null
+            })
+          }
+        } catch (error) {
+          console.error(`Failed to fetch proposal ${proposalId}:`, error)
+        }
+      }
+
+      setProposals(proposalDetails)
+    } catch (error) {
+      console.error('Failed to fetch proposals:', error)
+      showToast('Failed to load proposals', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [suiClient, TREASURY_OBJECT_ID])
+
+  /**
+   * Create a new proposal
+   */
+  const createProposal = useCallback(async (title, description, executionDelay = 7 * 24 * 60 * 60 * 1000) => {
+    if (!TREASURY_PACKAGE_ID) {
+      throw new Error('Treasury package ID not configured')
+    }
+
+    try {
+      setLoading(true)
+
+      const tx = await signAndExecuteTransaction({
+        transaction: {
+          kind: 'moveCall',
+          data: {
+            packageObjectId: TREASURY_PACKAGE_ID,
+            module: 'treasury',
+            function: 'create_proposal',
+            typeArguments: [],
+            arguments: [
+              TREASURY_OBJECT_ID,
+              title,
+              description,
+              executionDelay.toString()
+            ],
+            gasBudget: 10000
+          }
+        }
       })
 
-      return { success: true, transactionId: result.digest }
+      if (tx.effects?.status?.status === 'success') {
+        showToast('Proposal created successfully!', 'success')
+        await fetchProposals() // Refresh proposals
+        return tx
+      } else {
+        throw new Error('Transaction failed')
+      }
     } catch (error) {
       console.error('Failed to create proposal:', error)
-      addToast({
-        message: 'Failed to create proposal. Please try again.',
-        type: 'error'
-      })
+      showToast('Failed to create proposal', 'error')
       throw error
     } finally {
       setLoading(false)
     }
-  }, [executeTransaction, setLoading, addToast])
+  }, [signAndExecuteTransaction, TREASURY_PACKAGE_ID, TREASURY_OBJECT_ID, fetchProposals])
 
   /**
-   * Votes on a governance proposal
-   * @param {string} proposalId - Proposal ID to vote on
-   * @param {boolean} support - Vote direction (true = for, false = against)
-   * @param {number} votingPower - Voting power amount
-   * @returns {Promise<Object>} Transaction result
+   * Vote on a proposal
    */
-  const voteOnProposal = useCallback(async (proposalId, support, votingPower) => {
-    setLoading(true)
+  const voteOnProposal = useCallback(async (proposalId, support) => {
+    if (!TREASURY_PACKAGE_ID) {
+      throw new Error('Treasury package ID not configured')
+    }
+
     try {
-      const tx = new TransactionBlock()
-      
-      // In a real implementation, you would get voting power from NFT holdings
-      // This is a simplified version
-      const votingPowerObj = tx.moveCall({
-        target: `0x1::vote::create_voting_power`,
-        arguments: [tx.pure(votingPower)]
+      setLoading(true)
+
+      const tx = await signAndExecuteTransaction({
+        transaction: {
+          kind: 'moveCall',
+          data: {
+            packageObjectId: TREASURY_PACKAGE_ID,
+            module: 'treasury',
+            function: 'vote',
+            typeArguments: [],
+            arguments: [
+              TREASURY_OBJECT_ID,
+              proposalId,
+              support
+            ],
+            gasBudget: 10000
+          }
+        }
       })
 
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${TREASURY_MODULE}::vote_on_proposal`,
-        arguments: [
-          tx.object('0xYOUR_TREASURY_ID'), // Treasury object
-          tx.pure(proposalId),
-          tx.pure(support),
-          votingPowerObj,
-          tx.object('0x6') // Clock object
-        ]
-      })
+      if (tx.effects?.status?.status === 'success') {
+        showToast(`Vote ${support ? 'for' : 'against'} recorded!`, 'success')
 
-      const result = await executeTransaction(tx)
-      
-      addToast({
-        message: `Vote ${support ? 'for' : 'against'} proposal recorded!`,
-        type: 'success'
-      })
+        // Update local user votes
+        setUserVotes(prev => new Map(prev.set(proposalId, { support, timestamp: Date.now() })))
 
-      return { success: true, transactionId: result.digest }
+        await fetchProposals() // Refresh proposals
+        return tx
+      } else {
+        throw new Error('Transaction failed')
+      }
     } catch (error) {
       console.error('Failed to vote on proposal:', error)
-      addToast({
-        message: 'Failed to vote on proposal. Please try again.',
-        type: 'error'
-      })
+      showToast('Failed to vote on proposal', 'error')
       throw error
     } finally {
       setLoading(false)
     }
-  }, [executeTransaction, setLoading, addToast])
+  }, [signAndExecuteTransaction, TREASURY_PACKAGE_ID, TREASURY_OBJECT_ID, fetchProposals])
 
   /**
-   * Executes an approved proposal
-   * @param {string} proposalId - Proposal ID to execute
-   * @returns {Promise<Object>} Transaction result
+   * Execute a proposal
    */
   const executeProposal = useCallback(async (proposalId) => {
-    setLoading(true)
+    if (!TREASURY_PACKAGE_ID) {
+      throw new Error('Treasury package ID not configured')
+    }
+
     try {
-      const tx = new TransactionBlock()
-      
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${TREASURY_MODULE}::execute_proposal`,
-        arguments: [
-          tx.object('0xYOUR_TREASURY_ID'), // Treasury object
-          tx.pure(proposalId),
-          tx.object('0x6') // Clock object
-        ]
+      setLoading(true)
+
+      const tx = await signAndExecuteTransaction({
+        transaction: {
+          kind: 'moveCall',
+          data: {
+            packageObjectId: TREASURY_PACKAGE_ID,
+            module: 'treasury',
+            function: 'execute_proposal',
+            typeArguments: [],
+            arguments: [
+              TREASURY_OBJECT_ID,
+              proposalId
+            ],
+            gasBudget: 20000
+          }
+        }
       })
 
-      const result = await executeTransaction(tx)
-      
-      addToast({
-        message: 'Proposal executed successfully!',
-        type: 'success'
-      })
-
-      return { success: true, transactionId: result.digest }
+      if (tx.effects?.status?.status === 'success') {
+        showToast('Proposal executed successfully!', 'success')
+        await fetchProposals() // Refresh proposals
+        return tx
+      } else {
+        throw new Error('Transaction failed')
+      }
     } catch (error) {
       console.error('Failed to execute proposal:', error)
-      addToast({
-        message: 'Failed to execute proposal. Please try again.',
-        type: 'error'
-      })
+      showToast('Failed to execute proposal', 'error')
       throw error
     } finally {
       setLoading(false)
     }
-  }, [executeTransaction, setLoading, addToast])
+  }, [signAndExecuteTransaction, TREASURY_PACKAGE_ID, TREASURY_OBJECT_ID, fetchProposals])
 
   /**
-   * Collects fees into treasury
-   * @param {string} treasuryId - Treasury object ID
-   * @param {number} amount - Amount to collect in SUI
-   * @returns {Promise<Object>} Transaction result
+   * Get user's voting power
    */
-  const collectFees = useCallback(async (treasuryId, amount) => {
-    setLoading(true)
+  const getVotingPower = useCallback(async (address) => {
+    if (!suiClient || !TREASURY_OBJECT_ID || !address) return 0
+
     try {
-      const tx = new TransactionBlock()
-      const amountMist = Math.floor(amount * 1000000000)
-      
-      // Split coins for fee payment
-      const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(amountMist)])
-      
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${TREASURY_MODULE}::collect_fees`,
-        arguments: [
-          tx.object(treasuryId),
-          feeCoin
-        ]
-      })
-
-      const result = await executeTransaction(tx)
-      
-      addToast({
-        message: 'Fees collected successfully!',
-        type: 'success'
-      })
-
-      return { success: true, transactionId: result.digest }
+      // This would depend on your governance token implementation
+      // For now, return a mock value
+      return 100 // Mock voting power
     } catch (error) {
-      console.error('Failed to collect fees:', error)
-      addToast({
-        message: 'Failed to collect fees. Please try again.',
-        type: 'error'
-      })
-      throw error
-    } finally {
-      setLoading(false)
+      console.error('Failed to get voting power:', error)
+      return 0
     }
-  }, [executeTransaction, setLoading, addToast])
+  }, [suiClient, TREASURY_OBJECT_ID])
+
+  // Load proposals on mount
+  useEffect(() => {
+    fetchProposals()
+  }, [fetchProposals])
 
   return {
+    proposals,
+    loading,
+    userVotes,
     createProposal,
     voteOnProposal,
     executeProposal,
-    collectFees
+    getVotingPower,
+    refetch: fetchProposals
   }
 }
