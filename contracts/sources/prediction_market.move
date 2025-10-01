@@ -9,6 +9,7 @@ module suifund::prediction_market {
     use sui::sui::SUI;
     use sui::bag::{Self, Bag};
     use sui::vec_map::{Self, VecMap};
+    use suifund::utils;
 
     // Error codes
     const EMarketClosed: u64 = 0;
@@ -17,6 +18,8 @@ module suifund::prediction_market {
     const ENotCreator: u64 = 3;
     const EInvalidOutcome: u64 = 4;
     const EAlreadyClaimed: u64 = 5;
+    const ENotBetter: u64 = 6;
+    const ENoWinnings: u64 = 7;
 
     // Outcomes
     const OUTCOME_UNRESOLVED: u8 = 0;
@@ -34,7 +37,8 @@ module suifund::prediction_market {
         resolution_time: u64,
         outcome: u8,
         bets: Bag,
-        resolved: bool
+        resolved: bool,
+        balance: Balance<SUI>
     }
 
     struct Bet has store {
@@ -64,12 +68,20 @@ module suifund::prediction_market {
         outcome: u8
     }
 
+    struct WinningsClaimed has copy, drop {
+        market_id: ID,
+        better: address,
+        amount: u64
+    }
+
     public fun create_market(
         campaign_id: ID,
         question: vector<u8>,
         resolution_time: u64,
         ctx: &mut TxContext
     ): PredictionMarket {
+        assert!(resolution_time > utils::current_timestamp_ms(), EMarketClosed);
+
         let market = PredictionMarket {
             id: object::new(ctx),
             campaign_id,
@@ -81,10 +93,10 @@ module suifund::prediction_market {
             resolution_time,
             outcome: OUTCOME_UNRESOLVED,
             bets: bag::new(ctx),
-            resolved: false
+            resolved: false,
+            balance: balance::zero<SUI>()
         };
 
-        // Emit creation event
         sui::event::emit(MarketCreated {
             market_id: object::id(&market),
             campaign_id,
@@ -117,6 +129,9 @@ module suifund::prediction_market {
             market.no_bets = market.no_bets + amount;
         };
 
+        // Add to market balance
+        balance::join(&mut market.balance, coin::into_balance(payment));
+
         // Record the bet
         let bet = Bet {
             better: tx_context::sender(ctx),
@@ -128,16 +143,12 @@ module suifund::prediction_market {
 
         bag::add(&mut market.bets, bet);
 
-        // Emit bet event
         sui::event::emit(BetPlaced {
             market_id: object::id(market),
             better: tx_context::sender(ctx),
             amount,
             outcome
         });
-
-        // Destroy the payment coin (in real implementation, this would be stored)
-        coin::destroy(payment);
     }
 
     public entry fun resolve_market(
@@ -154,7 +165,6 @@ module suifund::prediction_market {
         market.outcome = outcome;
         market.resolved = true;
 
-        // Emit resolution event
         sui::event::emit(MarketResolved {
             market_id: object::id(market),
             outcome
@@ -168,11 +178,46 @@ module suifund::prediction_market {
     ) {
         assert!(market.resolved, EMarketClosed);
 
-        // In a real implementation, you would:
-        // 1. Find all bets by this better for the winning outcome
-        // 2. Calculate their share of the winnings
-        // 3. Transfer the winnings to the better
-        // 4. Mark the bets as claimed
+        let bets = &mut market.bets;
+        let size = bag::size(bets);
+        let i = 0;
+        let total_winnings = 0;
+        let total_bet_amount = 0;
+
+        // Calculate total bets on winning outcome
+        let winning_pool = if (market.outcome == OUTCOME_YES) market.yes_bets else market.no_bets;
+        let losing_pool = if (market.outcome == OUTCOME_YES) market.no_bets else market.yes_bets;
+
+        while (i < size) {
+            let bet = bag::borrow_mut(bets, i);
+            if (bet.better == better && bet.outcome == market.outcome && !bet.winnings_claimed) {
+                total_bet_amount = total_bet_amount + bet.amount;
+                bet.winnings_claimed = true;
+            };
+            i = i + 1;
+        };
+
+        assert!(total_bet_amount > 0, ENotBetter);
+
+        // Calculate winnings: (bet_amount / winning_pool) * losing_pool + bet_amount
+        let winnings = if (winning_pool > 0) {
+            utils::calculate_share(losing_pool, total_bet_amount, winning_pool) + total_bet_amount
+        } else {
+            total_bet_amount
+        };
+
+        assert!(winnings > 0, ENoWinnings);
+        assert!(balance::value(&market.balance) >= winnings, EInvalidAmount);
+
+        // Transfer winnings
+        let winnings_coin = coin::take(&mut market.balance, winnings, ctx);
+        transfer::public_transfer(winnings_coin, better);
+
+        sui::event::emit(WinningsClaimed {
+            market_id: object::id(market),
+            better,
+            amount: winnings
+        });
     }
 
     // Helper function to get market info

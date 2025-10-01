@@ -6,9 +6,11 @@ import CampaignExplorer from './pages/CampaignExplorer'
 import CampaignDetails from './pages/CampaignDetails'
 import CreateCampaign from './pages/CreateCampaign'
 import Dashboard from './pages/Dashboard'
+import ErrorBoundary from './components/ui/ErrorBoundary'
+import ToastContainer from './components/ui/ToastContainer'
 import { useAppStore } from './stores/useAppStore'
 
-function App() {
+function AppContent() {
   const { currentView } = useAppStore()
   const { connected } = useWallet()
 
@@ -34,7 +36,16 @@ function App() {
         {renderCurrentView()}
       </main>
       <Footer />
+      <ToastContainer />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   )
 }
 
