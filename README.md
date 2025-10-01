@@ -30,6 +30,8 @@ SuiFund is a fully on-chain decentralized platform that combines crowdfunding wi
 1. Clone the repository:
 ```bash
 git clone https://github.com/your-username/suifund.git
+
+
 cd suifund
 
 ```
@@ -86,3 +88,5 @@ sui client publish --gas-budget 100000000
 ## Contributing
 We welcome contributions! 
 
+=======
+cd suifund
