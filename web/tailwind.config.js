@@ -1,4 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+
+/**
+ * Tailwind CSS Configuration for SuiFund
+ * 
+ * Design System:
+ * - Primary color: Blue gradient for brand identity
+ * - Dark theme optimized for blockchain applications
+ * - Custom animations for smooth user experience
+ * - Responsive design for all device sizes
+ */
 export default {
   content: [
     "./index.html",
@@ -18,6 +28,7 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.5s ease-out',
+        'pulse-slow': 'pulse 3s infinite',
       },
       keyframes: {
         fadeIn: {

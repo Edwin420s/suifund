@@ -1,3 +1,12 @@
+/// # Campaign Module Tests
+/// 
+/// Comprehensive test suite for campaign functionality including:
+/// - Campaign creation with various parameters
+/// - Contribution handling and state updates
+/// - Goal achievement and status transitions
+/// - Refund processing for failed campaigns
+/// - Edge cases and error conditions
+
 #[test_only]
 module suifund::campaign_test {
     use sui::test_scenario;
@@ -6,6 +15,7 @@ module suifund::campaign_test {
     use sui::sui;
     use suifund::campaign;
 
+    /// Tests basic campaign creation with valid parameters
     #[test]
     fun test_create_campaign() {
         let scenario = test_scenario::begin(@0x0);
@@ -46,6 +56,7 @@ module suifund::campaign_test {
         test_scenario::end(scenario);
     }
 
+    /// Tests contribution functionality and state updates
     #[test]
     fun test_contribute_to_campaign() {
         let scenario = test_scenario::begin(@0x0);
@@ -94,6 +105,7 @@ module suifund::campaign_test {
         test_scenario::end(scenario);
     }
 
+    /// Tests campaign goal achievement and status transition
     #[test]
     fun test_campaign_goal_reached() {
         let scenario = test_scenario::begin(@0x0);
@@ -133,6 +145,77 @@ module suifund::campaign_test {
         // Verify campaign is completed
         let (_, _, _, _, _, _, _, actual_status) = campaign::get_campaign_info(&campaign);
         assert!(actual_status == campaign::STATUS_COMPLETED, 0);
+        
+        test_scenario::end(scenario);
+    }
+
+    /// Tests campaign creation with invalid beneficiary percentages
+    #[test]
+    #[expected_failure(abort_code = 5)] // EInvalidBeneficiary
+    fun test_create_campaign_invalid_beneficiaries() {
+        let scenario = test_scenario::begin(@0x0);
+        let admin = test_scenario::next_ts(&mut scenario);
+        
+        let title = b"Test Campaign";
+        let description = b"Test description";
+        let goal = 1000000000;
+        let deadline = 1735689600000;
+        let image_url = b"https://example.com/image.jpg";
+        
+        // Invalid: percentages don't add to 100
+        let beneficiaries = vector[
+            campaign::Beneficiary { address: @0x1, percentage: 30 },
+            campaign::Beneficiary { address: @0x2, percentage: 30 }
+        ];
+        
+        let _ = campaign::create_campaign(
+            title,
+            description,
+            goal,
+            deadline,
+            image_url,
+            beneficiaries,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        test_scenario::end(scenario);
+    }
+
+    /// Tests contribution to ended campaign
+    #[test]
+    #[expected_failure(abort_code = 3)] // ECampaignEnded
+    fun test_contribute_after_deadline() {
+        let scenario = test_scenario::begin(@0x0);
+        let admin = test_scenario::next_ts(&mut scenario);
+        
+        let title = b"Test Campaign";
+        let description = b"Test description";
+        let goal = 1000000000;
+        let deadline = 1000; // Past deadline
+        let image_url = b"https://example.com/image.jpg";
+        let beneficiaries = vector[
+            campaign::Beneficiary { address: @0x1, percentage: 100 }
+        ];
+        
+        let mut campaign = campaign::create_campaign(
+            title,
+            description,
+            goal,
+            deadline,
+            image_url,
+            beneficiaries,
+            test_scenario::ctx(&mut scenario)
+        );
+        
+        let coin = coin::mint_for_testing(100000000, test_scenario::ctx(&mut scenario));
+        
+        // Should fail: campaign deadline passed
+        campaign::contribute(
+            &mut campaign,
+            coin,
+            clock::mock_shared_clock(2000), // Current time after deadline
+            test_scenario::ctx(&mut scenario)
+        );
         
         test_scenario::end(scenario);
     }
