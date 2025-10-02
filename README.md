@@ -29,7 +29,7 @@ SuiFund is a fully on-chain decentralized platform that combines crowdfunding wi
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/suifund.git
+git clone https://github.com/Edwin420s/suifund.git
 
 
 cd suifund
