@@ -37,7 +37,7 @@ cd suifund
 ```
 ### Install frontend dependencies:
 ```
-cd suifund-web
+cd web
 npm install
 ```
 
