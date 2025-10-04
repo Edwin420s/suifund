@@ -227,7 +227,7 @@ module suifund::campaign {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let current_time = clock::timestamp_ms();
+        let current_time = clock::timestamp_ms(clock);
         assert!(campaign.status == STATUS_ACTIVE, ECampaignEnded);
         assert!(current_time < campaign.deadline, ECampaignEnded);
 
@@ -279,7 +279,7 @@ module suifund::campaign {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let current_time = clock::timestamp_ms();
+        let current_time = clock::timestamp_ms(clock);
         assert!(current_time >= campaign.deadline, ECampaignEnded);
         assert!(campaign.raised < campaign.goal, EGoalReached);
         assert!(campaign.status == STATUS_ACTIVE, ECampaignEnded);
