@@ -171,6 +171,26 @@ export const capitalize = (str) => {
 }
 
 /**
+ * Parse SUI amount to MIST (blockchain format)
+ * @param {string|number} suiAmount - Amount in SUI
+ * @returns {string} Amount in MIST as string
+ */
+export const parseSUI = (suiAmount) => {
+  if (suiAmount === null || suiAmount === undefined || suiAmount === '') {
+    return '0'
+  }
+
+  const numAmount = parseFloat(suiAmount)
+  if (isNaN(numAmount)) {
+    return '0'
+  }
+
+  // Convert SUI to MIST (1 SUI = 1,000,000,000 MIST)
+  const mistAmount = Math.floor(numAmount * 1_000_000_000)
+  return mistAmount.toString()
+}
+
+/**
  * Truncate text with ellipsis
  * @param {string} text - Text to truncate
  * @param {number} maxLength - Maximum length
