@@ -24,6 +24,45 @@ SuiFund is a fully on-chain platform that combines crowdfunding, prediction mark
 - **DAO Governance**: Treasury, proposals, and voting
 - **Fully On-Chain**: Funds and logic secured by Sui
 
+## How the smart contracts work
+
+This project’s Move contracts live in `contracts/sources/`. Core modules and flows:
+
+- **`suifund::campaign`** (`contracts/sources/campaign.move`)
+  - **Data**: `Campaign`, `Beneficiary`, `Contribution` with a SUI `Balance` and a `Bag` of contributions.
+  - **Create**: `create_campaign(title, description, goal, deadline, image_url, beneficiaries, ctx)` validates beneficiaries sum to 100%, future `deadline`, and positive `goal`.
+  - **Contribute**: `contribute(&mut Campaign, Coin<SUI>, &Clock, &mut TxContext)` accepts SUI, increments totals, records a `Contribution`, emits `ContributionMade`. Requires shared `Clock` (`0x6`).
+  - **Goal/Status**: When `raised >= goal`, status becomes `STATUS_COMPLETED`.
+  - **Refunds**: `process_refunds(&mut Campaign, &Clock, &mut TxContext)` after deadline if goal not met; flips status to failed and emits `RefundProcessed`. `claim_refund(&mut Campaign, contributor, &mut TxContext)` transfers the contributor’s unclaimed total back.
+  - **Distribution**: `distribute_funds(&mut Campaign, &mut TxContext)` splits the SUI `Balance` by `Beneficiary.percentage` and transfers using `transfer::public_transfer`, emits `FundsDistributed`.
+  - **Helper**: `create_beneficiary(address, percentage)` validates and returns a `Beneficiary` (used by the frontend to build vectors safely).
+
+- **`suifund::prediction_market`** (`contracts/sources/prediction_market.move`)
+  - **Data**: `PredictionMarket` with YES/NO pools and `Bag` of `Bet`s.
+  - **Create**: `create_market(campaign_id, question, resolution_time, ctx)` ensures future resolution time and emits `MarketCreated`.
+  - **Place bet**: `place_bet(&mut PredictionMarket, outcome, Coin<SUI>, &Clock, &mut TxContext)` updates pools, records a `Bet`, and emits `BetPlaced`.
+  - **Resolve**: `resolve_market(&mut PredictionMarket, outcome, &Clock, &mut TxContext)` only by creator after resolution time; emits `MarketResolved`.
+  - **Claim**: `claim_winnings(&mut PredictionMarket, better, &mut TxContext)` pays winners by proportion: `bet_share = (losing_pool * user_winning_bet_sum) / winning_pool; winnings = bet_share + principal`; emits `WinningsClaimed`.
+
+- **`suifund::nft`** (`contracts/sources/nft.move`)
+  - **Data**: `SupporterNFT` with `campaign_id`, `contributor`, `amount`, `timestamp`, `image_url`, `tier`, `benefits: vector<String>`.
+  - **Mint**: `mint_supporter_nft(...)` converts `benefits: vector<vector<u8>>` to `vector<String>`, emits `NFTMinted`.
+  - **Transfer**: `transfer_nft(SupporterNFT, recipient, &mut TxContext)`.
+
+- **`suifund::treasury`** (`contracts/sources/treasury.move`)
+  - **Data**: `Treasury` with a SUI `Balance`, `Bag` of `Proposal`s, and counters; `Proposal` tracks votes and window.
+  - **Fees**: `collect_fees(&mut Treasury, Coin<SUI>, &mut TxContext)` joins SUI into the treasury `Balance`, emits `FeesCollected`.
+  - **Governance**: `create_proposal(...)` (bounded voting window), `vote_on_proposal(..., VotingPower, &Clock, &mut TxContext)`, and `execute_proposal(...)` after end time if `votes_for > votes_against`; transfers funds and emits `ProposalExecuted`.
+
+- **`suifund::utils`** (`contracts/sources/utils.move`)
+  - Math helpers (`calculate_percentage`, `calculate_share`) and safe arithmetic (`safe_add`, `safe_sub`, `safe_mul`).
+  - Basic validation (`is_valid_address`, `is_valid_percentage`).
+
+Security notes:
+- Uses Sui object model; funds are held in `Balance<SUI>` inside objects, preventing reentrancy.
+- Access control enforced (e.g., only campaign creator can distribute; only market creator can resolve).
+- Arithmetic and input validations where relevant.
+
 ## Tech Stack
 
 - **Frontend**: React 18, Vite, Tailwind CSS, Framer Motion
