@@ -20,7 +20,7 @@ module suifund::treasury_test {
         
         let treasury_obj = treasury::create_treasury(test_scenario::ctx(&mut scenario));
         
-        let (total_fees, proposal_count) = treasury::get_treasury_info(&treasury_obj);
+        let (total_fees, _, proposal_count, _) = treasury::get_treasury_info(&treasury_obj);
         
         assert!(total_fees == 0, 0);
         assert!(proposal_count == 0, 1);
@@ -44,7 +44,7 @@ module suifund::treasury_test {
             test_scenario::ctx(&mut scenario)
         );
         
-        let (total_fees, _) = treasury::get_treasury_info(&treasury_obj);
+        let (total_fees, _, _, _) = treasury::get_treasury_info(&treasury_obj);
         assert!(total_fees == 500000000, 0);
         
         test_scenario::end(scenario);

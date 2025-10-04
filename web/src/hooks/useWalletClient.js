@@ -1,4 +1,6 @@
 import { useWallet } from '@mysten/wallet-kit'
+import { CHAIN } from '../utils/constants'
+
 import { useAppStore } from '../stores/useAppStore'
 
 export const useWalletClient = () => {
@@ -37,7 +39,7 @@ export const useWalletClient = () => {
       setLoading(true)
       return await wallet.signTransactionBlock({
         transactionBlock,
-        chain: 'sui:testnet'
+        chain: CHAIN
       })
     } catch (error) {
       console.error('Failed to sign transaction:', error)
@@ -52,7 +54,7 @@ export const useWalletClient = () => {
       setLoading(true)
       return await wallet.signAndExecuteTransactionBlock({
         transactionBlock,
-        chain: 'sui:testnet',
+        chain: CHAIN,
         options: {
           showEffects: true,
           showEvents: true,

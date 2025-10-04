@@ -8,6 +8,7 @@
 
 module suifund::nft {
     use std::string::{String, utf8};
+    use std::vector;
     use sui::object::{Self, UID, ID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
@@ -17,21 +18,12 @@ module suifund::nft {
     struct SupporterNFT has key, store {
         id: UID,
         campaign_id: ID,          /// Associated campaign ID
-        contributor: address,     /// Contributor's address
-        amount: u64,             /// Contribution amount in MIST
-        timestamp: u64,          /// Contribution timestamp
-        image_url: Url,          /// NFT image URL
-        tier: String,            /// Contributor tier (Bronze, Silver, Gold)
-        benefits: vector<String> /// NFT benefits and perks
-    }
-
-    /// Event emitted when NFT is minted
-    struct NFTMinted has copy, drop {
-        nft_id: ID,
-        campaign_id: ID,
         contributor: address,
         amount: u64,
-        tier: String
+        timestamp: u64,
+        image_url: Url,
+        tier: String,
+        benefits: vector<String>
     }
 
     /// Mints a new Supporter NFT for a campaign contributor
@@ -45,15 +37,15 @@ module suifund::nft {
         benefits: vector<vector<u8>>,
         ctx: &mut TxContext
     ): SupporterNFT {
-        let benefits_vec = vector::empty();
-        let i = 0;
-        let len = vector::length(&benefits);
-        
-        // Convert benefits to String vector
-        while (i < len) {
-            vector::push_back(&mut benefits_vec, utf8(vector::borrow(&benefits, i)));
-            i = i + 1;
+        let mut benefits_vec: vector<String> = vector::empty();
+        let mut remaining = benefits;
+        // Convert benefits to String vector by consuming the input vector
+        while (vector::length(&remaining) > 0) {
+            let benefit_bytes = vector::pop_back(&mut remaining);
+            vector::push_back(&mut benefits_vec, utf8(benefit_bytes));
         };
+
+        let tier_str = utf8(tier);
 
         let nft = SupporterNFT {
             id: object::new(ctx),
@@ -62,7 +54,7 @@ module suifund::nft {
             amount,
             timestamp,
             image_url: url::new_unsafe_from_bytes(image_url),
-            tier: utf8(tier),
+            tier: tier_str,
             benefits: benefits_vec
         };
 
@@ -72,7 +64,7 @@ module suifund::nft {
             campaign_id,
             contributor,
             amount,
-            tier: utf8(tier)
+            tier: nft.tier
         });
 
         nft

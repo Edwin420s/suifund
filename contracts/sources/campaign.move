@@ -15,6 +15,7 @@
 
 module suifund::campaign {
     use std::string::{String, utf8};
+    use std::vector;
     use sui::object::{Self, UID, ID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
@@ -86,6 +87,13 @@ module suifund::campaign {
     struct Beneficiary has store {
         address: address,
         percentage: u64
+    }
+
+    /// Helper to create a Beneficiary with validation (for frontend tx building)
+    public fun create_beneficiary(address: address, percentage: u64): Beneficiary {
+        assert!(utils::is_valid_percentage(percentage), EInvalidPercentage);
+        assert!(utils::is_valid_address(address), EInvalidBeneficiary);
+        Beneficiary { address, percentage }
     }
 
     /// Individual contribution record

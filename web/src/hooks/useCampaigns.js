@@ -72,23 +72,25 @@ export const useCampaigns = () => {
     try {
       const tx = new TransactionBlock()
       const [coin] = tx.splitCoins(tx.gas, [tx.pure(parseSUI(amount))])
-      
+
       tx.moveCall({
         target: `${PACKAGE_ID}::${CAMPAIGN_MODULE}::contribute`,
         arguments: [
           tx.object(campaignId),
-          coin
+          coin,
+          // Sui shared Clock object (framework ID)
+          tx.object('0x6')
         ]
       })
 
       const result = await executeTransaction(tx)
-      
+
       // Find contribution event
       const contributionEvent = result.events?.find(e => e.type.includes('ContributionMade'))
       if (contributionEvent) {
         addContribution(campaignId, parseSUI(amount))
-        return { 
-          success: true, 
+        return {
+          success: true,
           transactionId: result.digest,
           amount: parseSUI(amount)
         }
