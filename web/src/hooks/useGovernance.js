@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useWallet } from '@mysten/wallet-kit'
+import { useWalletKit } from '@mysten/wallet-kit'
 import { useAppStore } from '../stores/useAppStore'
 import { showToast } from '../utils/notifications'
 
 export const useGovernance = () => {
-  const { signAndExecuteTransaction } = useWallet()
+  const walletKit = useWalletKit()
+  const { signAndExecuteTransaction } = walletKit
   const { suiClient } = useAppStore()
   const [proposals, setProposals] = useState([])
   const [loading, setLoading] = useState(false)
