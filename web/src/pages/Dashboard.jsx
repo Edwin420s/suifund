@@ -245,4 +245,101 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Tab Navigation */}
-      <div className="flex space-x-4 mb-6 border-b border-s
+      <div className="flex space-x-4 mb-6 border-b border-slate-700">
+        {['overview', 'created', 'supported', 'governance', 'activity'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3 py-2 text-sm border-b-2 transition-colors ${
+              activeTab === tab
+                ? 'border-blue-500 text-white'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {tab.replace('_', ' ').charAt(0).toUpperCase() + tab.replace('_', ' ').slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <h3 className="text-lg font-semibold mb-4">Created Campaigns</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {userData.createdCampaigns.map(c => (
+                <CampaignCard key={c.id} campaign={c} />
+              ))}
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+            <ul className="space-y-3 text-sm text-gray-300">
+              {userData.recentActivity.map((a, i) => (
+                <li key={i} className="flex justify-between border-b border-slate-700/60 pb-2">
+                  <span>{a.type.replace('_', ' ')}</span>
+                  <span className="text-gray-400">{new Date(a.timestamp).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'created' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {userData.createdCampaigns.map(c => (
+            <CampaignCard key={c.id} campaign={c} />
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'supported' && (
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold mb-4">Supported Campaigns</h3>
+          {userData.supportedCampaigns.length === 0 ? (
+            <p className="text-gray-400">No supported campaigns yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {userData.supportedCampaigns.map(c => (
+                <CampaignCard key={c.id} campaign={c} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'governance' && (
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold mb-4">Governance</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {userData.governanceActivity.map(g => (
+              <ProposalCard
+                key={g.id}
+                proposal={g}
+                onVote={(support) => handleVote(g.id, support)}
+                onExecute={() => handleExecuteProposal(g.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'activity' && (
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <ul className="space-y-3 text-sm text-gray-300">
+            {userData.recentActivity.map((a, i) => (
+              <li key={i} className="flex justify-between border-b border-slate-700/60 pb-2">
+                <span>{a.type.replace('_', ' ')}</span>
+                <span className="text-gray-400">{new Date(a.timestamp).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Dashboard
