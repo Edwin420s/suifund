@@ -171,6 +171,49 @@ export const capitalize = (str) => {
 }
 
 /**
+ * Format SUI amount for display
+ * @param {number} mistAmount - Amount in MIST
+ * @returns {string} Formatted SUI string
+ */
+export const formatSUI = (mistAmount) => {
+  if (mistAmount === null || mistAmount === undefined || isNaN(mistAmount)) {
+    return '0 SUI'
+  }
+
+  const suiAmount = mistAmount / 1_000_000_000
+  return formatCurrency(suiAmount, 'SUI')
+}
+
+/**
+ * Calculate time remaining until deadline
+ * @param {string|Date|number} deadline - Deadline timestamp or date
+ * @returns {string} Time remaining string or 'Ended'
+ */
+export const timeRemaining = (deadline) => {
+  if (!deadline) return 'Ended'
+
+  const deadlineTime = new Date(deadline).getTime()
+  const now = Date.now()
+  const diff = deadlineTime - now
+
+  if (diff <= 0) return 'Ended'
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+  if (days > 0) {
+    return `${days} day${days > 1 ? 's' : ''} left`
+  } else if (hours > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''} left`
+  } else if (minutes > 0) {
+    return `${minutes} minute${minutes > 1 ? 's' : ''} left`
+  } else {
+    return 'Less than a minute left'
+  }
+}
+
+/**
  * Calculate progress percentage
  * @param {number} raised - Amount raised
  * @param {number} goal - Funding goal
