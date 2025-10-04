@@ -171,6 +171,20 @@ export const capitalize = (str) => {
 }
 
 /**
+ * Calculate progress percentage
+ * @param {number} raised - Amount raised
+ * @param {number} goal - Funding goal
+ * @returns {number} Progress percentage (0-100)
+ */
+export const calculateProgress = (raised, goal) => {
+  if (!goal || goal === 0) return 0
+  if (!raised || raised === 0) return 0
+
+  const progress = (raised / goal) * 100
+  return Math.min(progress, 100) // Cap at 100%
+}
+
+/**
  * Parse SUI amount to MIST (blockchain format)
  * @param {string|number} suiAmount - Amount in SUI
  * @returns {string} Amount in MIST as string
