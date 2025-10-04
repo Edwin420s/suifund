@@ -5,8 +5,12 @@
 ### Functions
 - `create_campaign()`: Creates a new fundraising campaign
 - `contribute()`: Allows users to contribute to a campaign
-- `refund()`: Processes refunds if campaign fails
+- `process_refunds()`: Marks campaign failed and prepares refunds after deadline when goal not reached
+- `claim_refund()`: Claims refund for a specific contributor
 - `distribute_funds()`: Distributes funds to beneficiaries
+- `create_beneficiary(address, percentage)`: Helper to construct a validated `Beneficiary`
+
+Note: `contribute()` and `process_refunds()` require the shared `Clock` object.
 
 ### Data Structures
 - `Campaign`: Stores campaign details and state
@@ -32,17 +36,16 @@
 - `transfer_nft()`: Allows NFT transfers between users
 
 ### Data Structures
-- `SupporterNFT`: NFT with campaign contribution details
-- `Metadata`: NFT metadata and benefits
+- `SupporterNFT`: NFT with campaign contribution details, tier, and benefits
 
 ## Treasury Module
 
 ### Functions
-- `collect_fees()`: Collects platform fees
+- `collect_fees()`: Collects platform fees into the treasury
 - `create_proposal()`: Creates funding proposals
-- `vote_on_proposal()`: Allows governance voting
-- `execute_proposal()`: Executes successful proposals
+- `vote_on_proposal()`: Allows governance voting with voting power
+- `execute_proposal()`: Executes successful proposals and transfers funds
 
 ### Data Structures
-- `Treasury`: Manages platform funds
+- `Treasury`: Manages platform funds and proposals
 - `Proposal`: Stores proposal details and voting results

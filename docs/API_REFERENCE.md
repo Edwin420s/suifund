@@ -8,16 +8,19 @@ Manages wallet connection and transactions.
 **Methods:**
 - `connect()`: Connect wallet
 - `disconnect()`: Disconnect wallet
-- `signTransaction()`: Sign a transaction
-- `executeTransaction()`: Execute a transaction
+- `signTransaction(transactionBlock)`: Sign a transaction
+- `executeTransaction(transactionBlock)`: Sign and execute a transaction
+  - Uses dynamic `CHAIN` from `web/src/utils/constants.js`
 
 ### useCampaigns()
 Manages campaign operations.
 
 **Methods:**
-- `createCampaign()`: Create a new campaign
-- `contributeToCampaign()`: Contribute to a campaign
+- `createCampaign(campaignData)`: Create a new campaign
+- `contributeToCampaign(campaignId, amount)`: Contribute to a campaign (passes shared Clock)
 - `refreshCampaigns()`: Refresh campaign list
+- `distributeFunds(campaignId)`: Distribute funds for a successful campaign
+- `claimRefund(campaignId)`: Claim refund after failed campaign
 
 ### useReadOnChain()
 Reads data from the blockchain.
@@ -31,7 +34,6 @@ Reads data from the blockchain.
 
 ### GET /api/campaigns
 Get all campaigns.
-
 ### GET /api/campaigns/:id
 Get campaign by ID.
 
