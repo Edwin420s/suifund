@@ -397,4 +397,4 @@ module suifund::campaign {
     ): Campaign {
         create_campaign(title, description, goal, deadline, image_url, beneficiaries, ctx)
     }
-}
+} 
