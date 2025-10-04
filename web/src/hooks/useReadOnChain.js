@@ -1,19 +1,14 @@
 import { useCallback } from 'react'
-import { useWallet } from '@mysten/wallet-kit'
-import { 
-  CONTRACT_ADDRESS, 
-  CAMPAIGN_MODULE, 
-  RPC_URL,
-  PACKAGE_ID
-} from '../utils/constants'
+import { PACKAGE_ID, CAMPAIGN_MODULE } from '../utils/constants'
+import { useWalletClient } from './useWalletClient'
 import { TransactionBlock } from '@mysten/sui.js'
 
 export const useReadOnChain = () => {
-  const wallet = useWallet()
+  const { connected, executeTransaction } = useWalletClient()
 
   const getCampaigns = useCallback(async () => {
     try {
-      if (!wallet.connected) {
+      if (!connected) {
         throw new Error('Wallet not connected')
       }
 
@@ -23,13 +18,7 @@ export const useReadOnChain = () => {
         arguments: []
       })
 
-      const result = await wallet.signAndExecuteTransactionBlock({
-        transactionBlock: tx,
-        options: {
-          showEffects: true,
-          showEvents: true
-        }
-      })
+      const result = await executeTransaction(tx)
 
       // Parse the result and return campaign data
       // This is a simplified example - actual implementation would parse the events
@@ -38,11 +27,11 @@ export const useReadOnChain = () => {
       console.error('Failed to get campaigns:', error)
       throw error
     }
-  }, [wallet])
+  }, [connected, executeTransaction])
 
   const getUserContributions = useCallback(async (address) => {
     try {
-      if (!wallet.connected) {
+      if (!connected) {
         throw new Error('Wallet not connected')
       }
 
@@ -52,20 +41,18 @@ export const useReadOnChain = () => {
         arguments: [tx.pure(address)]
       })
 
-      const result = await wallet.signAndExecuteTransactionBlock({
-        transactionBlock: tx
-      })
+      const result = await executeTransaction(tx)
 
       return parseContributionsFromEvents(result.events)
     } catch (error) {
       console.error('Failed to get user contributions:', error)
       throw error
     }
-  }, [wallet])
+  }, [connected, executeTransaction])
 
   const getCampaignDetail = useCallback(async (campaignId) => {
     try {
-      if (!wallet.connected) {
+      if (!connected) {
         throw new Error('Wallet not connected')
       }
 
@@ -75,9 +62,7 @@ export const useReadOnChain = () => {
         arguments: [tx.pure(campaignId)]
       })
 
-      const result = await wallet.signAndExecuteTransactionBlock({
-        transactionBlock: tx
-      })
+      const result = await executeTransaction(tx)
 
       return parseCampaignDetailFromEvents(result.events)
     } catch (error) {
