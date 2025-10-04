@@ -1,3 +1,17 @@
+## Problem
+
+- **Config drift and env mismatches**: Frontend used Create React App-style envs while the app runs on Vite; network/package IDs were hard to manage across environments.
+- **Contract ↔ Frontend integration gaps**: UI didn't pass the shared `Clock` to `campaign::contribute()`. Frontend constructed `Beneficiary` items not supported by the contract API. NFT module risked invalid borrows when converting benefits.
+- **Inconsistent chain handling**: Wallet interactions hardcoded chain instead of using selected network.
+- **Outdated/fragmented documentation**: Docs and README didn't reflect current env variables, functions, or deployment flow.
+
+## Solution
+
+- **Unified Vite configuration**: Switched to `VITE_*` variables in `web/src/utils/constants.js`, added `CURRENT_ADDRESSES`, `PACKAGE_ID`, `CHAIN`, and a comprehensive `web/.env.example`.
+- **Stable contract API surface**: Added `create_beneficiary(address, percentage)` in `suifund::campaign` to match UI vector construction; fixed `clock::timestamp_ms(clock)` usage; improved NFT benefits conversion to safe `vector<String>`.
+- **Dynamic chain selection**: Wallet hooks now use `CHAIN` derived from `VITE_SUI_NETWORK`.
+- **Documentation refresh**: Updated `README.md`, `docs/SMART_CONTRACT_SPEC.md`, `docs/DEPLOYMENT.md`, and `docs/API_REFERENCE.md` to align with code and deployment practices.
+
 # SuiFund — Decentralized Crowdfunding on Sui
 
 SuiFund is a fully on-chain platform that combines crowdfunding, prediction markets, NFT rewards, and DAO governance on the Sui blockchain.
