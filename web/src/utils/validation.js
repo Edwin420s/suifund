@@ -140,6 +140,16 @@ export const validateContributionAmount = (amount, minContribution = 0.1) => {
 }
 
 /**
+ * Validate contribution for form use
+ * @param {number|string} amount - Amount to validate
+ * @returns {object} Validation errors object
+ */
+export const validateContribution = (amount) => {
+  const result = validateContributionAmount(amount)
+  return result.isValid ? {} : { amount: result.error }
+}
+
+/**
  * Validate bet amount
  * @param {number|string} amount - Bet amount to validate
  * @param {number} maxBet - Maximum bet amount
