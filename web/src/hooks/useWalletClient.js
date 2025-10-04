@@ -1,71 +1,73 @@
-import { useWallet } from '@mysten/wallet-kit'
 import { CHAIN } from '../utils/constants'
-
 import { useAppStore } from '../stores/useAppStore'
 
+// Lightweight wallet client using window.sui (wallet standard)
 export const useWalletClient = () => {
-  const wallet = useWallet()
   const { setCurrentView, setLoading } = useAppStore()
 
+  const getWallet = () => (typeof window !== 'undefined' ? window.sui : null)
+
   const connect = async () => {
+    const w = getWallet()
+    if (!w?.connect) throw new Error('No Sui wallet found. Please install a Sui-compatible wallet.')
     try {
       setLoading(true)
-      if (!wallet.connected) {
-        await wallet.connect()
-      }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error)
-      throw error
+      await w.connect()
     } finally {
       setLoading(false)
     }
   }
 
   const disconnect = async () => {
+    const w = getWallet()
+    if (!w?.disconnect) return
     try {
       setLoading(true)
-      await wallet.disconnect()
+      await w.disconnect()
       setCurrentView('home')
-    } catch (error) {
-      console.error('Failed to disconnect wallet:', error)
-      throw error
     } finally {
       setLoading(false)
     }
   }
 
   const signTransaction = async (transactionBlock) => {
+    const w = getWallet()
+    if (!w?.signTransactionBlock) throw new Error('Wallet does not support signTransactionBlock')
     try {
       setLoading(true)
-      return await wallet.signTransactionBlock({
-        transactionBlock,
-        chain: CHAIN
-      })
-    } catch (error) {
-      console.error('Failed to sign transaction:', error)
-      throw error
+      return await w.signTransactionBlock({ transactionBlock, chain: CHAIN })
     } finally {
       setLoading(false)
     }
   }
 
   const executeTransaction = async (transactionBlock) => {
+    const w = getWallet()
+    if (!w?.signAndExecuteTransactionBlock) throw new Error('Wallet does not support signAndExecuteTransactionBlock')
     try {
       setLoading(true)
-      return await wallet.signAndExecuteTransactionBlock({
+      return await w.signAndExecuteTransactionBlock({
         transactionBlock,
         chain: CHAIN,
-        options: {
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true
-        }
+        options: { showEffects: true, showEvents: true, showObjectChanges: true }
       })
-    } catch (error) {
-      console.error('Failed to execute transaction:', error)
-      throw error
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getAddress = () => {
+    const w = getWallet()
+    try {
+      const accounts = w?.getAccounts ? w.getAccounts() : []
+      // Some wallets return a promise
+      if (accounts?.then) {
+        // Not awaiting here to keep hook synchronous; callers use connected flag
+        return undefined
+      }
+      return Array.isArray(accounts) && accounts[0]?.address ? accounts[0].address : undefined
+    } catch {
+      return undefined
     }
   }
 
@@ -74,8 +76,7 @@ export const useWalletClient = () => {
     disconnect,
     signTransaction,
     executeTransaction,
-    address: wallet.account?.address,
-    connected: wallet.connected,
-    wallet
+    address: getAddress(),
+    connected: !!getAddress()
   }
 }
