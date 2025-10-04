@@ -1,15 +1,15 @@
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useAppStore } from '../../stores/useAppStore'
 
 const Footer = () => {
+  const { setCurrentView } = useAppStore()
   const currentYear = new Date().getFullYear()
 
   const footerLinks = {
     platform: [
-      { name: 'Campaigns', path: '/campaigns' },
-      { name: 'Markets', path: '/markets' },
-      { name: 'Governance', path: '/governance' },
-      { name: 'Dashboard', path: '/dashboard' }
+      { name: 'Campaigns', view: 'explorer' },
+      { name: 'Governance', view: 'governance' },
+      { name: 'Dashboard', view: 'dashboard' }
     ],
     resources: [
       { name: 'Documentation', path: '/docs' },
@@ -37,14 +37,14 @@ const Footer = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
     >
-      {item.path ? (
-        <Link
-          to={item.path}
-          className="text-gray-400 hover:text-white transition-colors duration-200"
+      {item.view ? (
+        <button
+          onClick={() => setCurrentView(item.view)}
+          className="text-left text-gray-400 hover:text-white transition-colors duration-200"
         >
           {item.name}
-        </Link>
-      ) : (
+        </button>
+      ) : item.href ? (
         <a
           href={item.href}
           target="_blank"
@@ -53,6 +53,8 @@ const Footer = () => {
         >
           {item.name}
         </a>
+      ) : (
+        <span className="text-gray-500">{item.name}</span>
       )}
     </motion.li>
   )

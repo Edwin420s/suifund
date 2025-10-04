@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Card from '../ui/Card'
 import Progress from '../ui/Progress'
 import Button from '../ui/Button'
 import { formatCurrency, formatDate } from '../../utils/format'
+import { useAppStore } from '../../stores/useAppStore'
 
 const CampaignCard = ({ campaign, showActions = true }) => {
   const {
@@ -38,6 +38,13 @@ const CampaignCard = ({ campaign, showActions = true }) => {
     if (isFailed) return 'Failed'
     if (isActive) return `${daysLeft} days left`
     return 'Ended'
+  }
+
+  const { setCurrentCampaign, setCurrentView } = useAppStore()
+
+  const openDetails = () => {
+    setCurrentCampaign(campaign)
+    setCurrentView('campaign')
   }
 
   return (
@@ -115,11 +122,9 @@ const CampaignCard = ({ campaign, showActions = true }) => {
           {/* Actions */}
           {showActions && (
             <div className="flex space-x-2">
-              <Link to={`/campaigns/${id}`} className="flex-1">
-                <Button variant="outline" size="sm" className="w-full">
-                  View Details
-                </Button>
-              </Link>
+              <Button onClick={openDetails} variant="outline" size="sm" className="flex-1">
+                View Details
+              </Button>
               {isActive && (
                 <Button size="sm" className="px-4">
                   Back This
